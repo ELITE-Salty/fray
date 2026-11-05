@@ -18,8 +18,23 @@ class Project(models.Model):
     archived = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    @classmethod
+    def visible_to(cls, user):
+        return cls.objects.filter(Q(owner=user) | Q(memberships__user=user)).distinct()
+
     def __str__(self):
         return self.name
+
+
+class Invitation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(Project, on_delete=models.PROTECT, related_name="invitations")
+    email = models.EmailField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
 
 
 class Membership(models.Model):

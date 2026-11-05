@@ -39,22 +39,30 @@ for offset, seconds in [(0, 5400), (1, 3600), (2, 7200)]:
         mode="duration",
         duration_seconds=seconds,
     )
-client = Client()
-client.force_login(account)
-print(
-    json.dumps(
-        {
-            "cookies": [
-                {
-                    "name": "sessionid",
-                    "value": client.cookies["sessionid"].value,
-                    "domain": "127.0.0.1",
-                    "path": "/",
-                    "httpOnly": True,
-                    "secure": False,
-                    "sameSite": "Lax",
-                }
-            ]
-        }
-    )
+member = get_user_model().objects.create_user(
+    username=f"member-{suffix}", email=f"member-{suffix}@example.test", password=secrets.token_urlsafe(32)
 )
+EmailAddress.objects.create(user=member, email=member.email, primary=True, verified=True)
+TOTP.activate(member, generate_totp_secret())
+
+
+def state(user):
+    client = Client()
+    client.force_login(user)
+    return {
+        "cookies": [
+            {
+                "name": "sessionid",
+                "value": client.cookies["sessionid"].value,
+                "domain": "127.0.0.1",
+                "path": "/",
+                "httpOnly": True,
+                "secure": False,
+                "sameSite": "Lax",
+            }
+        ],
+        "origins": [],
+    }
+
+
+print(json.dumps({"owner": state(account), "member": state(member), "memberEmail": member.email}))

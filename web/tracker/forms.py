@@ -14,8 +14,7 @@ class TargetForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.user = user
         self.entry = entry
-        # Until collaboration rules are confirmed, only owned projects are usable.
-        self.projects = Project.objects.filter(owner=user, archived=False).order_by("name")
+        self.projects = Project.visible_to(user).filter(archived=False).order_by("name")
         self.activities = Activity.objects.filter(owner=user, archived=False).order_by("name")
         choices = [("", "General work — no project")]
         choices += [("p:" + str(p.pk), "Project · " + p.name) for p in self.projects]
@@ -31,9 +30,9 @@ class TargetForm(forms.Form):
         if not value:
             return {"project": None, "activity": None}
         kind, pk = value.split(":")
-        model = Project if kind == "p" else Activity
         # Recheck authorization at use time, not only while rendering the selector.
-        target = model.objects.get(pk=pk, owner=self.user)
+        available = Project.visible_to(self.user) if kind == "p" else Activity.objects.filter(owner=self.user)
+        target = available.get(pk=pk)
         return {"project": target if kind == "p" else None, "activity": target if kind == "a" else None}
 
 
@@ -107,3 +106,7 @@ class ActivityForm(ItemForm):
 
 class ProfileForm(forms.Form):
     timezone = forms.ChoiceField(choices=[(tz, tz) for tz in sorted(available_timezones())])
+
+
+class InvitationForm(forms.Form):
+    email = forms.EmailField(label="Member email", max_length=254)

@@ -134,3 +134,5 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
 SECURE_HSTS_SECONDS = int(os.getenv("FRAY_HSTS_SECONDS", "0"))
+
+EMAIL_TIMEOUT = 10

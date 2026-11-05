@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<section class="card item-section"><h1>Join {{ invitation.project.name }}?</h1><p>All members can see member totals. Your individual entries and notes stay private.</p><form method="post">{% csrf_token %}<button>Accept invitation</button></form></section>{% endblock %}

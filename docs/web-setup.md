@@ -1,11 +1,9 @@
 # FRAY web foundation — setup
 
-This branch is an **incomplete milestone foundation**. Accounts, mandatory MFA,
-personal tracking, projects/activities, calendar, totals and personal CSV work.
-Collaboration/invitations and permitted member totals await the requester's exact
-policy decision on BLU-4. Do not use this as a completed shared-project release.
-Android/iOS and PDF/XLSX exports are not delivered here. The original README,
-blueprint and all supplied images are retained unchanged.
+This branch delivers the FRAY web milestone for independent QA: verified-email
+accounts, mandatory MFA, personal tracking, shared projects, owner email invitations,
+member totals, calendar, personal reports and CSV. Android/iOS and PDF/XLSX exports
+are outside this milestone. The original blueprint and supplied images are retained.
 
 ## Clean checkout with Docker Compose
 
@@ -52,6 +50,32 @@ codes presented once; each works once. Password alone cannot complete subsequent
 sign-ins. Password reset uses the same email delivery configuration. The profile
 page links password, email, MFA and recovery management. Disabling MFA returns
 the account to the enrollment gate before app access.
+
+### Sharing a project
+
+Only a project owner may invite members. Open the project and enter the invited
+email address. SMTP sends a seven-day invitation; the recipient signs up/signs in,
+verifies that email and enrolls MFA, then explicitly accepts. Opening a link alone
+does not join a project. A signed-in recipient can also find invitations under
+**Projects & activities**. Invitations grant no project access until acceptance.
+Another verified account cannot use the link. Expired invitations require a new
+invitation. Repeated acceptance is safe and never adds duplicate membership.
+
+For the self-hosted milestone, configure your SMTP server as above before inviting.
+Console email remains a local-only test option. If SMTP fails, the invitation stays
+available in-app and the owner sees a failure notice. Re-enter the address after
+one minute to retry the same unexpired invitation. Sending is limited to one
+attempt per address per minute and at most 20 recently attempted invitations per
+project per hour. Archived projects cannot invite or accept new members.
+
+All accepted members can select the shared project for manual entries or their
+own timer. Each account has its own independent timer. The project page shows
+monthly completed project and member totals, including zero-time members. Dates
+use each entry's recorded local date, even when members use different timezones.
+A live timer joins totals only after stopping. Project names/descriptions and member
+email identities are shared; individual entry descriptions, notes, times and personal
+CSV/reports stay author-only. Only the owner may archive/restore the project.
+Existing records and memberships are retained; removal/transfer is outside this slice.
 
 ### Tracking
 
@@ -131,9 +155,11 @@ Keep the development key stable if retaining the database. For PostgreSQL set
 `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER` and
 `POSTGRES_PASSWORD`; without `POSTGRES_HOST`, local SQLite is used.
 
-Browser smoke checks are in `scripts/browser-smoke.cjs` (Playwright 1.62.1).
+The browser check demonstrates owner invitation, member acceptance, two independent
+shared-project timers, correct member totals, private entry isolation, and mobile
+rendering. Browser smoke checks are in `scripts/browser-smoke.cjs` (Playwright 1.62.1).
 CI runs them against the Compose app and saves responsive screenshots. The
-fixture script adds an isolated verified/MFA-enrolled demo account only to the
+fixture script adds two isolated verified/MFA-enrolled demo accounts only to the
 disposable CI database; it is not an account-creation or MFA bypass offered by
 the app. Actual email verification, password login, MFA challenge/enrollment,
 replay prevention and recovery are tested separately in `web/tracker/tests.py`.

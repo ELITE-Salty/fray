@@ -1,6 +1,10 @@
 import calendar
 import csv
-from datetime import date
+from datetime import date, timedelta
+from smtplib import SMTPException
+from allauth.account.models import EmailAddress
+from django.core.mail import send_mail
+from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import connection, transaction
@@ -8,10 +12,10 @@ from django.db.models import Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from django.core.paginator import Paginator
-from .forms import ActivityForm, EntryForm, ItemForm, ProfileForm, TargetForm
-from .models import Activity, Entry, Membership, Profile, Project
+from .forms import ActivityForm, EntryForm, ItemForm, ProfileForm, TargetForm, InvitationForm
+from .models import Activity, Entry, Membership, Profile, Project, Invitation
 from .services import start_timer, stop_timer
 
 
@@ -145,7 +149,7 @@ def timer_stop(request, pk):
 def items(request):
     query = request.GET.get("q", "")[:120]
     archived = request.GET.get("archived") == "1"
-    project_list = Project.objects.filter(owner=request.user, archived=archived, name__icontains=query).order_by("name")
+    project_list = Project.visible_to(request.user).filter(archived=archived, name__icontains=query).order_by("name")
     activity_list = Activity.objects.filter(owner=request.user, archived=archived, name__icontains=query).order_by(
         "name"
     )
@@ -157,6 +161,7 @@ def items(request):
             "activities": Paginator(activity_list, 30).get_page(request.GET.get("activities_page")),
             "query": query,
             "archived": archived,
+            "invitations": pending_invitations(request.user),
         },
     )
 
@@ -191,15 +196,117 @@ def item_archive(request, kind, pk):
 @login_required
 @require_GET
 def project_detail(request, pk):
-    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    project = get_object_or_404(Project.visible_to(request.user), pk=pk)
     month, end = period(request)
-    total = (
-        personal_entries(request.user)
-        .filter(project=project, local_date__gte=month, local_date__lt=end)
-        .aggregate(total=Sum("duration_seconds"))["total"]
-        or 0
+    completed = Entry.objects.filter(project=project, local_date__gte=month, local_date__lt=end)
+    totals = dict(
+        completed.values("author_id").annotate(total=Sum("duration_seconds")).values_list("author_id", "total")
     )
-    return render(request, "tracker/project.html", {"project": project, "total": total, "month": month})
+    members = list(project.memberships.select_related("user").order_by("joined_at"))
+    # Include an owner on legacy projects even if no membership row exists.
+    people = {m.user_id: m.user for m in members}
+    people.setdefault(project.owner_id, project.owner)
+    rows = [{"name": u.email, "seconds": totals.get(uid) or 0} for uid, u in people.items()]
+    return render(
+        request,
+        "tracker/project.html",
+        {
+            "project": project,
+            "total": sum(r["seconds"] for r in rows),
+            "month": month,
+            "member_totals": rows,
+            "invite_form": InvitationForm(),
+            "invitations": project.invitations.filter(accepted_at__isnull=True, expires_at__gt=timezone.now())
+            if project.owner_id == request.user.pk
+            else [],
+        },
+    )
+
+
+def pending_invitations(user):
+    from django.db.models import Q
+
+    emails = EmailAddress.objects.filter(user=user, verified=True).values_list("email", flat=True)
+    email_filter = Q(pk__in=[])
+    for email in emails:
+        email_filter |= Q(email__iexact=email)
+    return Invitation.objects.filter(
+        email_filter, accepted_at__isnull=True, expires_at__gt=timezone.now(), project__archived=False
+    ).select_related("project")
+
+
+@login_required
+@require_POST
+def project_invite(request, pk):
+    form = InvitationForm(request.POST)
+    with transaction.atomic():
+        project = get_object_or_404(Project.objects.select_for_update(), pk=pk, owner=request.user, archived=False)
+        if not form.is_valid():
+            messages.error(request, "Enter a valid member email.")
+            return redirect("project_detail", pk=pk)
+        email = form.cleaned_data["email"].lower()
+        if (
+            EmailAddress.objects.filter(user__membership__project=project, email__iexact=email, verified=True).exists()
+            or EmailAddress.objects.filter(user=project.owner, email__iexact=email, verified=True).exists()
+        ):
+            messages.info(request, "This email already belongs to a project member.")
+            return redirect("project_detail", pk=pk)
+        now = timezone.now()
+        invite = project.invitations.filter(email=email, accepted_at__isnull=True, expires_at__gt=now).first()
+        if project.invitations.filter(last_attempt_at__gt=now - timedelta(hours=1)).count() >= 20 or (
+            invite and invite.last_attempt_at and invite.last_attempt_at > now - timedelta(minutes=1)
+        ):
+            messages.error(request, "Please wait before sending more invitations.")
+            return redirect("project_detail", pk=pk)
+        if not invite:
+            invite = Invitation.objects.create(project=project, email=email, expires_at=now + timedelta(days=7))
+        invite.last_attempt_at = now
+        invite.save(update_fields=["last_attempt_at"])
+    url = request.build_absolute_uri(reverse("invitation_accept", args=[invite.pk]))
+    try:
+        send_mail(
+            "FRAY project invitation",
+            f"You are invited to {project.name}. Sign in with the invited verified email and accept within seven days: {url}\nYou can also accept under Projects & activities.",
+            None,
+            [email],
+        )
+    except (SMTPException, OSError):
+        messages.error(
+            request,
+            "Invitation saved, but email delivery failed. Check SMTP configuration and retry after one minute. The recipient can still accept in Projects & activities.",
+        )
+    else:
+        invite.sent_at = timezone.now()
+        invite.save(update_fields=["sent_at"])
+        messages.success(request, "Invitation sent. Membership begins only after acceptance.")
+    return redirect("project_detail", pk=pk)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def invitation_accept(request, pk):
+    with transaction.atomic():
+        initial = get_object_or_404(Invitation, pk=pk)
+        project = get_object_or_404(Project.objects.select_for_update(), pk=initial.project_id, archived=False)
+        invite = Invitation.objects.select_for_update().get(pk=pk)
+        if not EmailAddress.objects.filter(user=request.user, verified=True, email__iexact=invite.email).exists():
+            # Do not disclose the invited address or project to another account.
+            from django.http import Http404
+
+            raise Http404
+        if invite.accepted_at:
+            return redirect("project_detail", pk=project.pk)
+        if invite.expires_at <= timezone.now():
+            return HttpResponse(
+                "This invitation has expired. Ask the project owner for another invitation.", status=410
+            )
+        if request.method == "POST":
+            Membership.objects.get_or_create(project=project, user=request.user)
+            invite.accepted_at = timezone.now()
+            invite.save(update_fields=["accepted_at"])
+            messages.success(request, "You joined the project.")
+            return redirect("project_detail", pk=project.pk)
+    return render(request, "tracker/invitation.html", {"invitation": invite})
 
 
 @login_required

@@ -349,3 +349,155 @@ class TimerConcurrencyTests(TransactionTestCase):
             results = list(pool.map(start, range(2)))
         self.assertEqual(sorted(results), [False, True])
         self.assertEqual(Entry.objects.filter(author=account, ended_at__isnull=True).count(), 1)
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+class CollaborationTests(TestCase):
+    def setUp(self):
+        from .models import Invitation
+
+        self.Invitation = Invitation
+        cache.clear()
+        self.owner = user("owner@example.test")
+        self.member = user("member@example.test")
+        self.outsider = user("outsider@example.test")
+        self.project = Project.objects.create(owner=self.owner, name="Shared depot")
+        Membership.objects.create(project=self.project, user=self.owner)
+        self.detail = f"/projects/{self.project.pk}/"
+        self.invite_url = self.detail + "invite/"
+        self.client.force_login(self.owner)
+
+    def invite(self):
+        self.client.post(self.invite_url, {"email": "MEMBER@example.test"})
+        return self.Invitation.objects.get(project=self.project)
+
+    def test_email_invitation_requires_explicit_verified_email_acceptance(self):
+        invite = self.invite()
+        url = f"/invitations/{invite.pk}/"
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(url, mail.outbox[0].body)
+        self.assertEqual(mail.outbox[0].to, [self.member.email])
+        self.assertIsNotNone(invite.sent_at)
+        self.assertFalse(Membership.objects.filter(project=self.project, user=self.member).exists())
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(self.client.post(url).status_code, 404)
+        self.assertNotContains(self.client.get("/items/"), "Shared depot")
+        self.client.force_login(self.member)
+        self.assertContains(self.client.get("/items/"), "Review invitation")
+        self.assertEqual(self.client.get(self.detail).status_code, 404)
+        self.assertContains(self.client.get(url), "Accept invitation")
+        self.assertFalse(Membership.objects.filter(project=self.project, user=self.member).exists())
+        address = EmailAddress.objects.get(user=self.member)
+        address.verified = False
+        address.save()
+        self.assertEqual(self.client.post(url).status_code, 302)  # verification gate
+        self.assertFalse(Membership.objects.filter(project=self.project, user=self.member).exists())
+        address.verified = True
+        address.save()
+        for _ in range(2):
+            self.assertRedirects(self.client.post(url), self.detail)
+        self.assertEqual(Membership.objects.filter(project=self.project, user=self.member).count(), 1)
+
+    def test_invitation_expiry_duplicate_throttle_archive_and_owner_only(self):
+        invite = self.invite()
+        self.client.post(self.invite_url, {"email": self.member.email})
+        self.assertEqual(self.Invitation.objects.count(), 1)
+        self.assertEqual(len(mail.outbox), 1)
+        invite.expires_at = timezone.now() - timedelta(seconds=1)
+        invite.save()
+        self.client.force_login(self.member)
+        self.assertEqual(self.client.post(f"/invitations/{invite.pk}/").status_code, 410)
+        self.client.force_login(self.owner)
+        self.client.post(self.invite_url, {"email": self.member.email})
+        self.assertEqual(self.Invitation.objects.count(), 2)
+        active = self.Invitation.objects.latest("created_at")
+        self.client.force_login(self.member)
+        self.client.post(f"/invitations/{active.pk}/")
+        self.assertEqual(self.client.post(self.invite_url, {"email": self.outsider.email}).status_code, 404)
+        self.assertEqual(self.client.post(f"/items/project/{self.project.pk}/archive/").status_code, 404)
+        self.assertNotContains(self.client.get(self.detail), "Invite a member")
+        self.client.force_login(self.owner)
+        self.client.post(self.invite_url, {"email": self.member.email})
+        self.assertEqual(self.Invitation.objects.count(), 2)
+        self.client.post(self.invite_url, {"email": "bad"})
+        self.assertEqual(self.Invitation.objects.count(), 2)
+        self.client.post(self.invite_url, {"email": self.outsider.email})
+        pending = self.Invitation.objects.get(email=self.outsider.email)
+        self.project.archived = True
+        self.project.save()
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.post(f"/invitations/{pending.pk}/").status_code, 404)
+
+    def test_delivery_failure_retains_invitation_and_retry(self):
+        from smtplib import SMTPException
+
+        with patch("tracker.views.send_mail", side_effect=SMTPException("unavailable")):
+            self.client.post(self.invite_url, {"email": self.member.email})
+        invite = self.Invitation.objects.get()
+        self.assertIsNone(invite.sent_at)
+        invite.last_attempt_at = timezone.now() - timedelta(minutes=2)
+        invite.save()
+        self.client.post(self.invite_url, {"email": self.member.email})
+        self.assertEqual(self.Invitation.objects.count(), 1)
+        invite.refresh_from_db()
+        self.assertIsNotNone(invite.sent_at)
+
+    def test_two_accounts_share_totals_with_independent_timers_and_private_entries(self):
+        invite = self.invite()
+        self.client.force_login(self.member)
+        self.client.post(f"/invitations/{invite.pk}/")
+        now = timezone.now()
+        target = "p:" + str(self.project.pk)
+        timers = []
+        for account, seconds in [(self.owner, 3600), (self.member, 1800)]:
+            self.client.force_login(account)
+            self.assertContains(self.client.get("/items/"), "Shared depot")
+            with patch("tracker.services.timezone.now", return_value=now):
+                self.client.post(
+                    "/timer/start/",
+                    {"target": target, "description": account.email + " private task", "notes": "secret"},
+                )
+            timers.append(Entry.objects.get(author=account))
+        self.assertEqual(Entry.objects.filter(ended_at__isnull=True).count(), 2)
+        for entry, seconds in zip(timers, [3600, 1800]):
+            self.client.force_login(entry.author)
+            with patch("tracker.services.timezone.now", return_value=now + timedelta(seconds=seconds)):
+                self.client.post(f"/timer/{entry.pk}/stop/")
+        month = timezone.localdate(now).strftime("%Y-%m")
+        for account in [self.owner, self.member]:
+            self.client.force_login(account)
+            response = self.client.get(self.detail + "?month=" + month)
+            self.assertEqual(response.context["total"], 5400)
+            self.assertEqual(sorted(row["seconds"] for row in response.context["member_totals"]), [1800, 3600])
+            self.assertNotContains(response, "private task")
+            self.assertNotContains(response, "secret")
+            other = self.member if account == self.owner else self.owner
+            for path in ["/entries/", "/reports/", "/reports/?format=csv", "/"]:
+                self.assertNotContains(self.client.get(path), other.email + " private task")
+            self.assertEqual(self.client.get(f"/entries/{Entry.objects.get(author=other).pk}/edit/").status_code, 404)
+        self.client.force_login(self.member)
+        self.client.post(
+            "/entries/new/",
+            {
+                "target": target,
+                "description": "Member manual",
+                "mode": "duration",
+                "minutes": 10,
+                "local_date": timezone.localdate().isoformat(),
+            },
+        )
+        self.assertTrue(
+            Entry.objects.filter(author=self.member, description="Member manual", project=self.project).exists()
+        )
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(self.detail).status_code, 404)
+        self.assertEqual(self.client.post(self.invite_url, {"email": self.outsider.email}).status_code, 404)
+
+    def test_invitation_csrf_and_get_cannot_send(self):
+        invite = self.invite()
+        csrf = Client(enforce_csrf_checks=True)
+        csrf.force_login(self.member)
+        self.assertEqual(csrf.post(f"/invitations/{invite.pk}/").status_code, 403)
+        self.assertEqual(self.client.get(self.invite_url).status_code, 405)
+        self.assertEqual(len(mail.outbox), 1)
