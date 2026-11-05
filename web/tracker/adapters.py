@@ -11,6 +11,7 @@ class EncryptedMFAAdapter(DefaultMFAAdapter):
     Keep SECRET_KEY stable and backed up separately from the database. Rotating
     it requires a deliberate secret re-encryption migration, never a fresh key.
     """
+
     def cipher(self):
         return Fernet(base64.urlsafe_b64encode(hashlib.sha256(settings.SECRET_KEY.encode()).digest()))
 

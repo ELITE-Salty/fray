@@ -23,6 +23,18 @@ jobs:
           PY
       - name: Compose installation, PostgreSQL tests and restart persistence
         run: sh scripts/compose-verify.sh
+      - name: Browser smoke and responsive screenshots
+        run: |
+          npm install --prefix /tmp/fray-browser-check --no-save playwright@1.62.1
+          node /tmp/fray-browser-check/node_modules/playwright/cli.js install --with-deps chromium --only-shell
+          docker compose -p fray-ci exec -T web python manage.py shell --verbosity 0 < scripts/browser-fixture.py > /tmp/fray-browser-state.json
+          FRAY_PLAYWRIGHT=/tmp/fray-browser-check/node_modules/playwright FRAY_BROWSER_STATE=/tmp/fray-browser-state.json node scripts/browser-smoke.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fray-responsive-screenshots
+          path: .test-artifacts/*.png
+          if-no-files-found: ignore
       - name: Container status on failure
         if: failure()
         run: |

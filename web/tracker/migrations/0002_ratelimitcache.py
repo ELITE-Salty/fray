@@ -4,21 +4,20 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('tracker', '0001_initial'),
+        ("tracker", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='RateLimitCache',
+            name="RateLimitCache",
             fields=[
-                ('cache_key', models.CharField(max_length=255, primary_key=True, serialize=False)),
-                ('value', models.TextField()),
-                ('expires', models.DateTimeField(db_index=True)),
+                ("cache_key", models.CharField(max_length=255, primary_key=True, serialize=False)),
+                ("value", models.TextField()),
+                ("expires", models.DateTimeField(db_index=True)),
             ],
             options={
-                'db_table': 'fray_cache',
+                "db_table": "fray_cache",
             },
         ),
     ]
