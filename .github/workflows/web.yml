@@ -25,4 +25,6 @@ jobs:
         run: sh scripts/compose-verify.sh
       - name: Container status on failure
         if: failure()
-        run: docker compose -p fray-ci ps -a
+        run: |
+          docker compose -p fray-ci ps -a
+          docker compose -p fray-ci logs --tail 80 web

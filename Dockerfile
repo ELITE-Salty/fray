@@ -5,7 +5,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && useradd --create-home --uid 10001 fray
 COPY --chown=fray:fray web/ ./
 COPY --chown=fray:fray scripts/start-web.sh /app/start-web.sh
-RUN chmod +x /app/start-web.sh
+RUN chmod +x /app/start-web.sh && mkdir -p /app/staticfiles && chown fray:fray /app/staticfiles
 USER fray
 EXPOSE 8000
 CMD ["/app/start-web.sh"]
