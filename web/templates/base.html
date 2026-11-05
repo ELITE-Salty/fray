@@ -1,0 +1,15 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#7047eb"><title>{% block title %}Fray · Make time for your work{% endblock %}</title><link rel="stylesheet" href="{% static 'fray.css' %}"><script src="{% static 'fray.js' %}" defer></script></head>
+<body><a class="skip" href="#main">Skip to content</a><div class="shell">
+<aside class="sidebar"><a class="brand" href="{% url 'dashboard' %}"><span class="brand-mark">◷</span> Fray<span class="brand-dot">.</span></a><p class="tagline">A little clarity for your day.</p>
+<nav aria-label="Main navigation">
+<a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}><span aria-hidden="true">▦</span> Calendar</a>
+<a href="{% url 'entries' %}" {% if request.resolver_match.url_name == 'entries' %}aria-current="page"{% endif %}><span aria-hidden="true">☷</span> Time entries</a>
+<a href="{% url 'items' %}" {% if request.resolver_match.url_name == 'items' %}aria-current="page"{% endif %}><span aria-hidden="true">▱</span> Projects & activities</a>
+<a href="{% url 'reports' %}" {% if request.resolver_match.url_name == 'reports' %}aria-current="page"{% endif %}><span aria-hidden="true">▥</span> Reports</a>
+<a href="{% url 'profile' %}" {% if request.resolver_match.url_name == 'profile' %}aria-current="page"{% endif %}><span aria-hidden="true">◎</span> Profile & security</a>
+</nav><div class="sidebar-bottom">{% if user.is_authenticated %}<span class="avatar">{{ user.email|first|upper }}</span><span class="account-email">{{ user.email }}</span><a href="{% url 'account_logout' %}">Sign out →</a>{% else %}<a href="{% url 'account_login' %}">Sign in →</a>{% endif %}<small>Your work. Your time.</small></div></aside>
+<main id="main"><div class="topline"><span>YOUR WORK, IN FOCUS</span><span class="privacy-badge">◈ Private by default</span></div>
+{% if messages %}<div aria-live="polite">{% for message in messages %}<p class="message {{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
+{% block workspace %}{% block content %}{% endblock %}{% endblock %}<footer>Fray <span>·</span> Make every hour count.</footer></main></div></body></html>
