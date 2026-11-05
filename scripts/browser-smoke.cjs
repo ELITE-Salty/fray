@@ -37,6 +37,8 @@ const out = process.env.FRAY_SCREENSHOT_DIR || '.test-artifacts';
     await page.goto(base + '/');
     await page.getByLabel('What are you working on?').fill('Browser timer');
     await page.getByRole('button', { name: 'Start timer' }).click();
+    await page.getByRole('button', { name: 'Stop & save' }).waitFor();
+    await page.waitForLoadState('load');
     await page.reload();
     await page.getByRole('button', { name: 'Stop & save' }).click();
     await page.getByText('Timer stopped and time saved.', { exact: true }).waitFor();
@@ -64,15 +66,19 @@ const out = process.env.FRAY_SCREENSHOT_DIR || '.test-artifacts';
       await actor.getByLabel('Activity / project').selectOption('p:' + projectId);
       await actor.getByLabel('Minutes (duration only)').fill(minutes);
       await actor.getByRole('button', { name: 'Save', exact: true }).click();
+      await actor.getByText(description, { exact: true }).waitFor();
       await actor.goto(base + '/');
       await actor.getByLabel('What are you working on?').fill(description + ' timer');
       await actor.getByLabel('Activity / project').selectOption('p:' + projectId);
       await actor.getByRole('button', { name: 'Start timer' }).click();
+      await actor.getByRole('button', { name: 'Stop & save' }).waitFor();
+      await actor.waitForLoadState('load');
     }
     // Both timers are still running independently; each account stops only its own.
     for (const actor of [page, memberPage]) {
       await actor.reload();
       await actor.getByRole('button', { name: 'Stop & save' }).click();
+      await actor.getByText('Timer stopped and time saved.', { exact: true }).waitFor();
       await actor.goto(projectUrl);
       await actor.getByRole('heading', { name: 'Member totals', exact: true }).waitFor();
       const rows = actor.locator('.item-row');
