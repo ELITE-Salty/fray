@@ -1,7 +1,7 @@
 name: FRAY web checks
 on:
   push:
-    branches: [main, feat/blu-4-web]
+    branches: [main]
   pull_request:
 permissions:
   contents: read

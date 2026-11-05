@@ -130,3 +130,11 @@ python web/manage.py runserver
 Keep the development key stable if retaining the database. For PostgreSQL set
 `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER` and
 `POSTGRES_PASSWORD`; without `POSTGRES_HOST`, local SQLite is used.
+
+Browser smoke checks are in `scripts/browser-smoke.cjs` (Playwright 1.62.1).
+CI runs them against the Compose app and saves responsive screenshots. The
+fixture script adds an isolated verified/MFA-enrolled demo account only to the
+disposable CI database; it is not an account-creation or MFA bypass offered by
+the app. Actual email verification, password login, MFA challenge/enrollment,
+replay prevention and recovery are tested separately in `web/tracker/tests.py`.
+Never publish the temporary browser session-state file.
