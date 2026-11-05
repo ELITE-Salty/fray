@@ -12,7 +12,9 @@ Delivery requires reproducible setup, migrations, seed data, environment example
 
 ## Web milestone implementation branch
 
-The additive web foundation is on `feat/blu-4-web`. See
-[web setup and current limitations](docs/web-setup.md) for Docker Compose,
-email verification/MFA, tracking, persistence and checks. Collaboration policy
-is pending; this branch is not yet the completed shared-project milestone.
+The responsive web milestone is implemented on `feat/blu-4-web` for independent
+QA. See [web setup and current limitations](docs/web-setup.md) for Docker Compose,
+email verification/MFA, shared projects, owner email invitations, private tracking,
+member totals, persistence and reproducible checks. This updates the original
+starting status above. Android/iOS and PDF/XLSX remain later work; production
+deployment and independent acceptance are not claimed.

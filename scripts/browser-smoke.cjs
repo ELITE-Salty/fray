@@ -44,7 +44,7 @@ const out = process.env.FRAY_SCREENSHOT_DIR || '.test-artifacts';
     await page.getByText('Timer stopped and time saved.', { exact: true }).waitFor();
     // Two real browser sessions: invite, explicit acceptance, shared work, privacy.
     await page.goto(base + '/items/new/project/');
-    await page.getByLabel('Name', { exact: true }).fill('Shared browser depot');
+    await page.getByLabel('Name').fill('Shared browser depot');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await page.getByRole('link', { name: 'Shared browser depot', exact: true }).click();
     const projectUrl = page.url();
@@ -79,6 +79,8 @@ const out = process.env.FRAY_SCREENSHOT_DIR || '.test-artifacts';
       await actor.reload();
       await actor.getByRole('button', { name: 'Stop & save' }).click();
       await actor.getByText('Timer stopped and time saved.', { exact: true }).waitFor();
+    }
+    for (const actor of [page, memberPage]) {
       await actor.goto(projectUrl);
       await actor.getByRole('heading', { name: 'Member totals', exact: true }).waitFor();
       const rows = actor.locator('.item-row');
