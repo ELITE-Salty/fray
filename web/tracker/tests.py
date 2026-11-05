@@ -2,6 +2,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 from allauth.account.models import EmailAddress, EmailConfirmationHMAC
 from allauth.mfa.models import Authenticator
@@ -170,6 +171,11 @@ class PersonalTrackingTests(TestCase):
         )
         data.update(kwargs)
         return Entry.objects.create(**data)
+
+    def test_manual_entry_default_date_is_valid_html_date(self):
+        response = self.client.get("/entries/new/")
+        today = timezone.localtime(timezone.now(), ZoneInfo("Europe/Ljubljana")).date().isoformat()
+        self.assertContains(response, f'value="{today}"')
 
     def test_duration_general_work_has_no_fabricated_timestamps(self):
         self.assertEqual(self.client.post("/entries/new/", self.base).status_code, 302)

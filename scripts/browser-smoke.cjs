@@ -28,6 +28,7 @@ const out = process.env.FRAY_SCREENSHOT_DIR || '.test-artifacts';
     }
     // Complete a manual entry through rendered controls and CSRF handling.
     await page.goto(base + '/entries/new/');
+    assert.match(await page.locator('#id_local_date').inputValue(), /^\d{4}-\d{2}-\d{2}$/, 'Default date must be browser-valid ISO format');
     await page.getByLabel('What are you working on?').fill('Browser-verified planning');
     await page.getByLabel('Minutes (duration only)').fill('45');
     await page.getByRole('button', { name: 'Save', exact: true }).click();

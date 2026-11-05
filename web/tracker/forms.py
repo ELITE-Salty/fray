@@ -40,7 +40,7 @@ class TargetForm(forms.Form):
 class EntryForm(TargetForm):
     mode = forms.ChoiceField(choices=[("duration", "Duration only"), ("timed", "Start and end")])
     local_date = forms.DateField(
-        label="Date (duration only)", widget=forms.DateInput(attrs={"type": "date"}), required=False
+        label="Date (duration only)", widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"), required=False
     )
     minutes = forms.IntegerField(min_value=1, max_value=1440, required=False, label="Minutes (duration only)")
     started_at = forms.DateTimeField(

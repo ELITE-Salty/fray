@@ -35,6 +35,7 @@ jobs:
           name: fray-responsive-screenshots
           path: .test-artifacts/*.png
           if-no-files-found: ignore
+          include-hidden-files: true
       - name: Container status on failure
         if: failure()
         run: |
