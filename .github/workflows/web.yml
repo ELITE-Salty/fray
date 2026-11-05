@@ -1,0 +1,43 @@
+name: FRAY web checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate isolated CI configuration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import secrets
+          text = Path('.env.example').read_text()
+          text = text.replace('replace-with-at-least-50-random-characters', secrets.token_urlsafe(64))
+          text = text.replace('replace-with-a-different-random-password', secrets.token_urlsafe(32))
+          Path('.env').write_text(text)
+          PY
+      - name: Compose installation, PostgreSQL tests and restart persistence
+        run: sh scripts/compose-verify.sh
+      - name: Browser smoke and responsive screenshots
+        run: |
+          npm install --prefix /tmp/fray-browser-check --no-save playwright@1.62.1
+          node /tmp/fray-browser-check/node_modules/playwright/cli.js install --with-deps chromium --only-shell
+          docker compose -p fray-ci exec -T web python manage.py shell --verbosity 0 < scripts/browser-fixture.py > /tmp/fray-browser-state.json
+          FRAY_PLAYWRIGHT=/tmp/fray-browser-check/node_modules/playwright FRAY_BROWSER_STATE=/tmp/fray-browser-state.json node scripts/browser-smoke.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fray-responsive-screenshots
+          path: .test-artifacts/*.png
+          if-no-files-found: ignore
+          include-hidden-files: true
+      - name: Container status on failure
+        if: failure()
+        run: |
+          docker compose -p fray-ci ps -a
+          docker compose -p fray-ci logs --tail 80 web
