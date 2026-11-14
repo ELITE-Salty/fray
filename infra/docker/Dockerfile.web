@@ -1,0 +1,27 @@
+FROM debian:bookworm-slim AS build
+ARG FLUTTER_REF=c197ca5199e9ee5661e865596c9c07294dfab51c
+ARG FLUTTER_VERSION=3.47.9
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl git unzip xz-utils zip libglu1-mesa \
+    && rm -rf /var/lib/apt/lists/*
+RUN git init /opt/flutter && cd /opt/flutter \
+    && git remote add origin https://github.com/flutter/flutter.git \
+    && git fetch --depth 1 origin "refs/tags/$FLUTTER_VERSION:refs/tags/$FLUTTER_VERSION" \
+    && git checkout -b stable "$FLUTTER_VERSION" \
+    && test "$(git rev-parse HEAD)" = "$FLUTTER_REF"
+ENV PATH="/opt/flutter/bin:${PATH}"
+RUN flutter config --no-analytics --enable-web && flutter precache --web
+WORKDIR /app
+COPY apps/fray/pubspec.yaml apps/fray/pubspec.lock ./
+RUN flutter pub get --enforce-lockfile
+COPY apps/fray/lib ./lib
+COPY apps/fray/web ./web
+COPY apps/fray/assets ./assets
+RUN flutter build web --release --no-web-resources-cdn --csp --no-wasm-dry-run
+
+FROM nginx:stable-alpine
+COPY --from=build /app/build/web /usr/share/nginx/html
+COPY infra/docker/nginx.conf /etc/nginx/nginx.conf
+USER nginx
+EXPOSE 8080
+ENTRYPOINT ["nginx", "-g", "daemon off;"]

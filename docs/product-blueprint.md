@@ -2,6 +2,8 @@
 
 Version: 1.0 | November 2026
 
+> Implementation update (14 November 2026): the chosen client is Flutter and the API is Django. The original blueprint below remains the product roadmap; it is not a claim that every feature is implemented. See [the current scope](../README.md) and [architecture decisions](architecture.md). Vagrant/cloud-init are future work, per the latest project direction.
+
 ## 1. Product vision
 Fray is a clean, mobile-first time-tracking application for iOS, Android, and the web. Individuals track recurring activities and short- or long-lived projects; collaborators can be invited to shared projects while keeping personal time records private by default.
 

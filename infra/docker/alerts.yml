@@ -1,0 +1,23 @@
+groups:
+  - name: fray
+    rules:
+      - alert: FrayDependencyUnavailable
+        expr: fray_dependency_ready == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations: {summary: Fray database or cache is unavailable}
+      - alert: FrayUnavailable
+        expr: up{job="fray"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: Fray metrics have been unreachable for two minutes}
+      - alert: FrayServerErrors
+        expr: sum(rate(fray_http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(fray_http_requests_total[5m])), 0.001) > 0.05
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: More than five percent of API requests are failing}
+      - alert: FraySlowRequests
+        expr: histogram_quantile(0.95, sum by (le) (rate(fray_http_request_seconds_bucket[5m]))) > 1
+        for: 10m
+        labels: {severity: warning}
+        annotations: {summary: API p95 latency exceeds one second}
