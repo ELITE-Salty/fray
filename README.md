@@ -73,7 +73,7 @@ Real account data persists in `backend/db.sqlite3`. In development only, MFA enc
 - Database constraints and migrations; an idempotent sample-data command.
 - Health endpoint, Prometheus-format request/latency metrics, and audit logs without passwords, OTP codes, or notes.
 
-The time editor uses calendar/clock pickers, regional date formats, and the device’s 12/24-hour setting. New entries use the device’s IANA timezone; existing entries retain their recorded timezone and date. The calendar also follows the locale’s first weekday. Nonexistent DST times are rejected; repeated times ask which occurrence you mean. Interface copy is still English, while Flutter picker controls and date/time formatting are localized. Duration-only records retain a date without inventing timestamps. Timed overlaps are rejected; adjacent intervals are allowed. Timed records spanning midnight belong to their start date. Entries must last 1 minute to 24 hours.
+The time editor uses calendar/clock pickers, regional date formats, and the device’s 12/24-hour setting. New entries use the device’s IANA timezone; existing entries retain their recorded timezone and date. The calendar also follows the locale’s first weekday. Nonexistent DST times are rejected; repeated times ask which occurrence you mean. The interface supports English, Slovenian and Croatian, including authentication, editors, reports and validation messages. Choose a language and Light, Dark or System appearance from the settings button on sign-in or from Profile. Both preferences persist on each device/browser; System follows supported device languages (otherwise English) and live OS appearance changes. Dates follow the selected language and times retain the device’s 12/24-hour preference. User-created names, descriptions and notes are never translated. Duration-only records retain a date without inventing timestamps. Timed overlaps are rejected; adjacent intervals are allowed. Timed records spanning midnight belong to their start date. Entries must last 1 minute to 24 hours.
 
 ![Monthly report](docs/screenshots/reports-desktop.png)
 
@@ -134,3 +134,5 @@ Set `FRAY_BROWSER_URL` for a different port and `PLAYWRIGHT_CHROMIUM_EXECUTABLE`
 5. The two VM deployment variants, public HTTPS verification, concurrency/load tests, monitoring dashboards/notification delivery, faculty VM backup/restore verification, and deployment recordings. Docker self-hosting already has PostgreSQL/Redis integration, Prometheus scraping/rules, and a tested backup restore; it does not replace the assignment’s apt-based VM provisioning.
 
 See [the faculty plan](docs/faculty-project.md) for how the app will satisfy the virtualization assignment later. The faculty organization, team ID, private repository creation, and final archive are intentionally left until that work starts.
+
+Language catalogs, appearance settings and their tests are documented in [localization and appearance](docs/localization.md).

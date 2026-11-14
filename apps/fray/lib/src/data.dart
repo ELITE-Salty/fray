@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'dart:async';
+
+import '../l10n/localization.dart';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -12,7 +15,6 @@ String monthKey(DateTime day) =>
     '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}';
 String dayKey(DateTime day) =>
     '${monthKey(day)}-${day.day.toString().padLeft(2, '0')}';
-String durationLabel(int minutes) => '${minutes ~/ 60}h ${minutes % 60}m';
 
 class WorkItem {
   final String id, name, kind, description, hex;
@@ -65,7 +67,7 @@ class TimeRecord {
     'end': end?.toIso8601String(),
   };
   String timeLabel(BuildContext context) {
-    if (mode == 'duration') return 'Unscheduled time';
+    if (mode == 'duration') return context.tr('Unscheduled time');
     final clock = TimeContext(timezone);
     return '${clockLabel(context, clock.local(start!))} – ${clockLabel(context, clock.local(end!))} · $timezone';
   }
@@ -85,6 +87,7 @@ class FrayStore extends ChangeNotifier {
       _client = client ?? createClient();
   final http.Client _client;
   String _csrf = '';
+  String language = 'en';
   Future<void>? _authPreparation;
   bool demo = false;
   String? name, email;
@@ -102,15 +105,30 @@ class FrayStore extends ChangeNotifier {
     request.headers.addAll({
       'Content-Type': 'application/json',
       'X-CSRFToken': _csrf,
+      'Accept-Language': language,
     });
     if (body != null) request.body = jsonEncode(body);
-    final response = await _client
-        .send(request)
-        .then(http.Response.fromStream)
-        .timeout(const Duration(seconds: 20));
+    late http.Response response;
+    try {
+      response = await _client
+          .send(request)
+          .then(http.Response.fromStream)
+          .timeout(const Duration(seconds: 20));
+    } on TimeoutException {
+      throw ApiException(
+        'Could not connect. Check your connection and try again.',
+      );
+    } on http.ClientException {
+      throw ApiException(
+        'Could not connect. Check your connection and try again.',
+      );
+    }
     if (response.statusCode >= 400) {
-      String message =
-          'Request failed (${response.statusCode}). Please try again.';
+      String message = translate(
+        language,
+        'Request failed ({status}). Please try again.',
+        {'status': response.statusCode},
+      );
       try {
         message = jsonDecode(response.body)['error'] ?? message;
       } catch (_) {}
@@ -382,7 +400,13 @@ class FrayStore extends ChangeNotifier {
         '/api/reports/monthly?month=${monthKey(month)}&format=csv',
       );
     }
-    final rows = ['Project / activity,Type,Minutes'];
+    final rows = [
+      [
+        'Project / activity',
+        'Type',
+        'Minutes',
+      ].map((key) => translate(language, key)).join(','),
+    ];
     for (final work in items) {
       final minutes = inMonth(month)
           .where((e) => e.itemId == work.id)
@@ -390,7 +414,7 @@ class FrayStore extends ChangeNotifier {
       if (minutes == 0) continue;
       var safe = work.name.replaceAll('"', '""');
       if (RegExp(r'^\s*[=+@\-]').hasMatch(safe)) safe = "'$safe";
-      rows.add('"$safe",${work.kind},$minutes');
+      rows.add('"$safe",${translate(language, work.kind)},$minutes');
     }
     return '\ufeff${rows.join('\r\n')}';
   }

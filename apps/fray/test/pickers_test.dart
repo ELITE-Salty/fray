@@ -78,7 +78,7 @@ void main() {
         find.text(MaterialLocalizations.of(pickerContext).okButtonLabel),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Save entry'));
+      await tester.tap(find.text('Shrani vnos'));
       await tester.pumpAndSettle();
       expect(store.entries.last.date, '2026-11-15');
       expect(store.entries.last.timezone, 'Europe/Ljubljana');

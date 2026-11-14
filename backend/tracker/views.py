@@ -17,6 +17,7 @@ from django.db.models import Sum
 from django.http import HttpResponse, JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_http_methods
 from django_otp import login as otp_login
 from prometheus_client import CONTENT_TYPE_LATEST, Gauge, generate_latest
@@ -35,7 +36,7 @@ def private(view):
     @wraps(view)
     def wrapped(request, *args, **kwargs):
         if not request.user.is_authenticated or not request.user.is_verified():
-            return error('Sign in with your password and MFA code.', 401)
+            return error(_('Sign in with your password and MFA code.'), 401)
         response = view(request, *args, **kwargs)
         response['Cache-Control'] = 'no-store'
         return response
@@ -48,10 +49,10 @@ def payload(view):
         try:
             body = json.loads(request.body or '{}')
             if not isinstance(body, dict):
-                raise ValueError('Expected a JSON object.')
+                raise ValueError(_('Expected a JSON object.'))
             return view(request, body, *args, **kwargs)
         except (ValueError, TypeError, KeyError, OverflowError, ValidationError, ZoneInfoNotFoundError) as exc:
-            return error(str(exc) or 'Invalid request.')
+            return error('; '.join(exc.messages) if isinstance(exc, ValidationError) else str(exc) or _('Invalid request.'))
     return wrapped
 
 
@@ -79,7 +80,7 @@ def sign_in(request, data):
             cache.add(key, 1, 300)
             attempts = 1
     if attempts > 10:
-        return error('Too many attempts. Wait five minutes.', 429)
+        return error(_('Too many attempts. Wait five minutes.'), 429)
     user = authenticate(request, username=email, password=password)
     verified = False
     device = None
@@ -100,7 +101,7 @@ def sign_in(request, data):
                             break
     if not verified:
         audit.info('login_failed')
-        return error('Email, password, or authenticator code is incorrect.', 401)
+        return error(_('Email, password, or authenticator code is incorrect.'), 401)
     login(request, user)
     otp_login(request, device)
     cache.delete(key)
@@ -141,7 +142,7 @@ def entry_json(entry):
 def text_field(data, key, max_length, default=''):
     value = data.get(key, default)
     if not isinstance(value, str) or len(value) > max_length:
-        raise ValueError(f'{key} must be text of at most {max_length} characters.')
+        raise ValueError(_('%(field)s must be text of at most %(limit)s characters.') % {'field': key, 'limit': max_length})
     return value.strip()
 
 
@@ -152,21 +153,21 @@ def items(request, data, item_id=None):
     if request.method == 'GET':
         return JsonResponse({'items': [item_json(i) for i in Item.objects.filter(owner=request.user)]})
     if request.method == 'PATCH' and item_id is None:
-        return error('An item ID is required.')
+        return error(_('An item ID is required.'))
     if request.method == 'POST' and item_id is not None:
-        return error('Create items at /api/items.')
+        return error(_('Create items at /api/items.'))
     item = get_object_or_404(Item, pk=item_id, owner=request.user) if item_id else Item(owner=request.user)
     name = text_field(data, 'name', 120, item.name)
     kind = data.get('kind', item.kind)
     color = data.get('color', item.color)
     if not name or kind not in ('project', 'activity') or not isinstance(color, str) or not re.fullmatch(r'#[0-9a-fA-F]{6}', color):
-        return error('Provide a name, project/activity kind, and a hex color.')
+        return error(_('Provide a name, project/activity kind, and a hex color.'))
     item.name, item.kind, item.color = name, kind, color
     item.description = text_field(data, 'description', 500, item.description)
     for field in ('pinned', 'archived'):
         if field in data:
             if not isinstance(data[field], bool):
-                return error(f'{field} must be true or false.')
+                return error(_('%(field)s must be true or false.') % {'field': field})
             setattr(item, field, data[field])
     item.save()
     audit.info('item_saved user=%s item=%s', request.user.pk, item.id)
@@ -176,7 +177,7 @@ def items(request, data, item_id=None):
 def month_bounds(request):
     value = request.GET.get('month', date.today().strftime('%Y-%m'))
     if not re.fullmatch(r'\d{4}-\d{2}', value):
-        raise ValueError('Month must be YYYY-MM.')
+        raise ValueError(_('Month must be YYYY-MM.'))
     first = date.fromisoformat(value + '-01')
     end = (first.replace(day=28) + timedelta(days=4)).replace(day=1)
     return first, end
@@ -191,9 +192,9 @@ def entries(request, data, entry_id=None):
         rows = TimeEntry.objects.filter(author=request.user, local_date__gte=first, local_date__lt=end)
         return JsonResponse({'entries': [entry_json(e) for e in rows]})
     if request.method in ('PATCH', 'DELETE') and entry_id is None:
-        return error('An entry ID is required.')
+        return error(_('An entry ID is required.'))
     if request.method == 'POST' and entry_id is not None:
-        return error('Create entries at /api/entries.')
+        return error(_('Create entries at /api/entries.'))
     entry = get_object_or_404(TimeEntry, pk=entry_id, author=request.user) if entry_id else TimeEntry(author=request.user)
     if request.method == 'DELETE':
         entry.delete()
@@ -201,7 +202,7 @@ def entries(request, data, entry_id=None):
         return JsonResponse({'ok': True})
     item = get_object_or_404(Item, pk=data['item_id'], owner=request.user)
     if item.archived:
-        return error('Unarchive this item before logging time.')
+        return error(_('Unarchive this item before logging time.'))
     day = date.fromisoformat(data['date'])
     zone = ZoneInfo(data.get('timezone', 'UTC'))
     mode = data['mode']
@@ -209,30 +210,30 @@ def entries(request, data, entry_id=None):
     if mode == 'timed':
         start, end = (datetime.fromisoformat(data[k]) for k in ('start', 'end'))
         if start.utcoffset() is None or end.utcoffset() is None:
-            return error('Timed entries require explicit UTC offsets.')
+            return error(_('Timed entries require explicit UTC offsets.'))
         if start.astimezone(zone).date() != day:
-            return error('The date must match the start in the selected timezone.')
+            return error(_('The date must match the start in the selected timezone.'))
         seconds = (end - start).total_seconds()
         if seconds % 60:
-            return error('Use whole-minute intervals.')
+            return error(_('Use whole-minute intervals.'))
         minutes = int(seconds / 60)
     elif mode == 'duration':
         minutes = data['minutes']
         if type(minutes) is not int:
-            return error('Duration must be an integer number of minutes.')
+            return error(_('Duration must be an integer number of minutes.'))
         if data.get('start') or data.get('end'):
-            return error('Duration-only entries cannot contain timestamps.')
+            return error(_('Duration-only entries cannot contain timestamps.'))
     else:
-        return error('Choose timed or duration mode.')
+        return error(_('Choose timed or duration mode.'))
     if not 1 <= minutes <= 1440:
-        return error('Duration must be between 1 minute and 24 hours.')
+        return error(_('Duration must be between 1 minute and 24 hours.'))
     notes = text_field(data, 'notes', 2000)
     with transaction.atomic():
         # Lock the author, so concurrent requests cannot both pass overlap checks.
         get_user_model().objects.select_for_update().get(pk=request.user.pk)
         if mode == 'timed' and TimeEntry.objects.filter(author=request.user, mode='timed',
                 started_at__lt=end, ended_at__gt=start).exclude(pk=entry.id).exists():
-            return error('This interval overlaps another timed entry.', 409)
+            return error(_('This interval overlaps another timed entry.'), 409)
         entry.item, entry.local_date, entry.timezone = item, day, str(zone)
         entry.mode, entry.started_at, entry.ended_at = mode, start, end
         entry.duration_minutes, entry.notes = minutes, notes
@@ -251,13 +252,13 @@ def report(request, data):
     if request.GET.get('format') == 'csv':
         stream = io.StringIO()
         writer = csv.writer(stream)
-        writer.writerow(['Project / activity', 'Type', 'Minutes'])
+        writer.writerow([_('Project / activity'), _('Type'), _('Minutes')])
         for row in totals:
             name = row['item__name']
             # Prevent spreadsheet formula injection, including whitespace-prefixed formulas.
             if name.lstrip().startswith(('=', '+', '-', '@', '\t', '\r')):
                 name = "'" + name
-            writer.writerow([name, row['item__kind'], row['minutes']])
+            writer.writerow([name, _(row['item__kind']), row['minutes']])
         response = HttpResponse('\ufeff' + stream.getvalue(), content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = f'attachment; filename="fray-{first:%Y-%m}.csv"'
         return response

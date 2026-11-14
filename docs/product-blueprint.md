@@ -147,7 +147,7 @@ Detailed PDF columns: Date | Project/Activity | Start | End | Duration | Notes. 
 - Whether members can create invitations (MVP: owner only).
 - Whether overlaps are allowed with warnings or rejected.
 - Whether timers/live tracking are needed (not required for MVP).
-- Whether multi-language support is needed at launch.
+- Launch languages: English, Slovenian and Croatian. Appearance: Light, Dark and System.
 
 ## 13. Prompt for a coding agent
 > Build Fray according to this specification, keeping the approved minimalist purple-and-white design. Start by proposing the monorepo structure, database schema, authentication/MFA approach, and API contract. Explicitly document assumptions and permission boundaries. Implement in small testable milestones, with migrations, automated tests, seed data and clear local development instructions. Do not skip security or invent missing product decisions without flagging them.

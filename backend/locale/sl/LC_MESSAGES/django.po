@@ -1,0 +1,150 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8\nLanguage: sl\nPlural-Forms: nplurals=4; plural=(n%100==1 ? 0 : n%100==2 ? 1 : n%100==3 || n%100==4 ? 2 : 3);\n"
+
+#, python-format
+msgid "%(field)s must be text of at most %(limit)s characters."
+msgstr "Polje %(field)s mora biti besedilo z največ %(limit)s znaki."
+
+#, python-format
+msgid "%(field)s must be true or false."
+msgstr "Polje %(field)s mora biti true ali false."
+
+msgid "Account creation is not available yet. Please try again later."
+msgstr "Ustvarjanje računa še ni na voljo. Poskusite pozneje."
+
+msgid "Account creation is not available."
+msgstr "Ustvarjanje računa ni na voljo."
+
+msgid "An account already exists for this email. Please sign in."
+msgstr "Račun s tem e-poštnim naslovom že obstaja. Prijavite se."
+
+msgid "An entry ID is required."
+msgstr "Potreben je ID vnosa."
+
+msgid "An item ID is required."
+msgstr "Potreben je ID postavke."
+
+msgid "Authenticator code is incorrect. Check the setup key and try a new code."
+msgstr "Koda iz aplikacije ni pravilna. Preverite nastavitveni ključ in poskusite z novo kodo."
+
+msgid "Choose timed or duration mode."
+msgstr "Izberite časovni interval ali trajanje."
+
+msgid "Create entries at /api/entries."
+msgstr "Vnose ustvarite na /api/entries."
+
+msgid "Create items at /api/items."
+msgstr "Postavke ustvarite na /api/items."
+
+msgid "Duration must be an integer number of minutes."
+msgstr "Trajanje mora biti celo število minut."
+
+msgid "Duration must be between 1 minute and 24 hours."
+msgstr "Trajanje mora biti med 1 minuto in 24 urami."
+
+msgid "Duration-only entries cannot contain timestamps."
+msgstr "Vnosi samo s trajanjem ne smejo vsebovati časovnih oznak."
+
+msgid "Email code is incorrect. Check your email and try again."
+msgstr "E-poštna koda ni pravilna. Preverite e-pošto in poskusite znova."
+
+msgid "Email delivery is not available. Please try again later."
+msgstr "Pošiljanje e-pošte ni na voljo. Poskusite pozneje."
+
+msgid "Email or password is incorrect."
+msgstr "E-poštni naslov ali geslo ni pravilno."
+
+msgid "Email, password, or authenticator code is incorrect."
+msgstr "E-poštni naslov, geslo ali koda iz aplikacije ni pravilna."
+
+msgid "Expected a JSON object."
+msgstr "Pričakovan je objekt JSON."
+
+#, python-format
+msgid "Invalid %(field)s."
+msgstr "Neveljavno polje %(field)s."
+
+msgid "Invalid request."
+msgstr "Neveljavna zahteva."
+
+msgid "Minutes"
+msgstr "Minute"
+
+msgid "Month must be YYYY-MM."
+msgstr "Mesec mora biti v obliki YYYY-MM."
+
+msgid "Project / activity"
+msgstr "Projekt / dejavnost"
+
+msgid "Provide a name, project/activity kind, and a hex color."
+msgstr "Vnesite ime, vrsto projekta/dejavnosti in šestnajstiško barvo."
+
+msgid "Security code is incorrect or already used. Try a new code."
+msgstr "Varnostna koda ni pravilna ali je že uporabljena. Poskusite z novo kodo."
+
+msgid "Setup expired. Start creating your account again."
+msgstr "Nastavitev je potekla. Znova začnite ustvarjati račun."
+
+msgid "Sign in with your password and MFA code."
+msgstr "Prijavite se z geslom in kodo za dvostopenjsko preverjanje."
+
+msgid "Sign-in expired. Enter your email and password again."
+msgstr "Prijava je potekla. Znova vnesite e-poštni naslov in geslo."
+
+msgid "The date must match the start in the selected timezone."
+msgstr "Datum se mora ujemati z začetkom v izbranem časovnem pasu."
+
+msgid "This interval overlaps another timed entry."
+msgstr "Ta interval se prekriva z drugim časovnim vnosom."
+
+msgid "Timed entries require explicit UTC offsets."
+msgstr "Časovni vnosi zahtevajo izrecen odmik UTC."
+
+msgid "Too many attempts. Please try again later."
+msgstr "Preveč poskusov. Poskusite pozneje."
+
+msgid "Too many attempts. Wait five minutes."
+msgstr "Preveč poskusov. Počakajte pet minut."
+
+msgid "Too many verification emails. Please try again later."
+msgstr "Preveč potrditvenih e-poštnih sporočil. Poskusite pozneje."
+
+msgid "Type"
+msgstr "Vrsta"
+
+msgid "Unarchive this item before logging time."
+msgstr "Pred beleženjem časa odstranite postavko iz arhiva."
+
+msgid "Use whole-minute intervals."
+msgstr "Uporabite intervale v celih minutah."
+
+msgid "Verification expired. Start creating your account again."
+msgstr "Potrditev je potekla. Znova začnite ustvarjati račun."
+
+msgid "Wait a minute before requesting another email."
+msgstr "Pred ponovno zahtevo za e-pošto počakajte minuto."
+
+msgid "We could not send your verification email. Please try again later."
+msgstr "Potrditvene e-pošte ni bilo mogoče poslati. Poskusite pozneje."
+
+#, python-format
+msgid "Your Fray email verification code is: %(code)s\n\nEnter it in the Fray app or browser where you started creating your account. Setup expires 10 minutes after your initial request; resending does not extend it. Never share this code.\n\nIf you did not request a Fray account, ignore this email."
+msgstr "Vaša koda za potrditev e-pošte Fray je: %(code)s\n\nVnesite jo v aplikaciji Fray ali brskalniku, kjer ste začeli ustvarjati račun. Nastavitev poteče 10 minut po prvotni zahtevi; ponovno pošiljanje tega ne podaljša. Kode nikoli ne delite z drugimi.\n\nČe niste zahtevali računa Fray, prezrite to sporočilo."
+
+msgid "Your Fray verification code"
+msgstr "Vaša potrditvena koda Fray"
+
+msgid "activity"
+msgstr "Dejavnost"
+
+msgid "project"
+msgstr "Projekt"
+
+
+#, python-format
+msgid "This password is too short. It must contain at least %d character."
+msgid_plural "This password is too short. It must contain at least %d characters."
+msgstr[0] "Geslo je prekratko. Vsebovati mora vsaj %d znak."
+msgstr[1] "Geslo je prekratko. Vsebovati mora vsaj %d znaka."
+msgstr[2] "Geslo je prekratko. Vsebovati mora vsaj %d znake."
+msgstr[3] "Geslo je prekratko. Vsebovati mora vsaj %d znakov."

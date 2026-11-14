@@ -1,3 +1,6 @@
+import '../l10n/localization.dart';
+import 'preferences.dart';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -9,20 +12,19 @@ import 'editors.dart';
 import 'download.dart';
 import 'auth_screen.dart';
 
-const purple = Color(0xFF7153E8);
-const ink = Color(0xFF28233E);
-const muted = Color(0xFF777286);
-const lavender = Color(0xFFF1EDFC);
-const line = Color(0xFFECE9F3);
+const brandPurple = Color(0xFF7153E8);
 
 class FrayApp extends StatefulWidget {
   final FrayStore? store;
-  const FrayApp({super.key, this.store});
+  final AppPreferences? preferences;
+  const FrayApp({super.key, this.store, this.preferences});
   @override
   State<FrayApp> createState() => _FrayAppState();
 }
 
 class _FrayAppState extends State<FrayApp> with WidgetsBindingObserver {
+  late final AppPreferences preferences =
+      widget.preferences ?? AppPreferences();
   late final FrayStore store = widget.store ?? FrayStore();
   @override
   void initState() {
@@ -50,70 +52,91 @@ class _FrayAppState extends State<FrayApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     if (widget.store == null) store.dispose();
+    if (widget.preferences == null) preferences.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'Fray · Make time for what matters',
-    debugShowCheckedModeBanner: false,
-    localizationsDelegates: GlobalMaterialLocalizations.delegates,
-    supportedLocales: kMaterialSupportedLanguages.map(
-      (language) => Locale(language),
-    ),
-    localeListResolutionCallback: (locales, supported) {
-      for (final locale in locales ?? <Locale>[]) {
-        if (GlobalMaterialLocalizations.delegate.isSupported(locale)) {
-          return locale;
-        }
-      }
-      return const Locale('en');
-    },
-    theme: ThemeData(
-      useMaterial3: true,
-      scaffoldBackgroundColor: const Color(0xFFFAF9FD),
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: purple,
-        primary: purple,
-        surface: Colors.white,
-      ),
-      fontFamily: 'Roboto',
-      textTheme: const TextTheme(
-        headlineMedium: TextStyle(
-          fontWeight: FontWeight.w700,
-          color: ink,
-          letterSpacing: -1,
-        ),
-        titleLarge: TextStyle(fontWeight: FontWeight.w700, color: ink),
-        bodyMedium: TextStyle(color: ink, height: 1.4),
-      ),
-      dividerColor: line,
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: const Color(0xFFFAF9FD),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: line),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: line),
-        ),
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 19),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+  Widget build(BuildContext context) => PreferencesScope(
+    preferences: preferences,
+    child: ListenableBuilder(
+      listenable: preferences,
+      builder: (context, _) => MaterialApp(
+        title: 'Fray',
+        debugShowCheckedModeBanner: false,
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        supportedLocales: const [Locale('en'), Locale('sl'), Locale('hr')],
+        locale: preferences.language == 'system'
+            ? null
+            : Locale(preferences.language),
+        localeListResolutionCallback: (locales, supported) =>
+            preferences.resolve(locales),
+        themeMode: preferences.themeMode,
+        theme: frayTheme(Brightness.light),
+        darkTheme: frayTheme(Brightness.dark),
+        builder: (context, child) {
+          store.language = Localizations.localeOf(context).languageCode;
+          return child!;
+        },
+        home: ListenableBuilder(
+          listenable: store,
+          builder: (context, _) => store.name == null
+              ? LoginScreen(store: store)
+              : Workspace(key: ValueKey(store.demo), store: store),
         ),
       ),
     ),
-    home: ListenableBuilder(
-      listenable: store,
-      builder: (context, _) => store.name == null
-          ? LoginScreen(store: store)
-          : Workspace(key: ValueKey(store.demo), store: store),
+  );
+}
+
+ThemeData frayTheme(Brightness brightness) {
+  final dark = brightness == Brightness.dark;
+  final scheme = ColorScheme.fromSeed(
+    seedColor: brandPurple,
+    brightness: brightness,
+    primary: dark ? const Color(0xFFC9B8FF) : brandPurple,
+    primaryContainer: dark ? const Color(0xFF35294F) : const Color(0xFFF1EDFC),
+    surface: dark ? const Color(0xFF211D2B) : Colors.white,
+    onSurface: dark ? const Color(0xFFEAE4F3) : const Color(0xFF28233E),
+    onSurfaceVariant: dark ? const Color(0xFFC5BDD2) : const Color(0xFF6D667A),
+    outlineVariant: dark ? const Color(0xFF494152) : const Color(0xFFECE9F3),
+  );
+  final base = ThemeData(
+    useMaterial3: true,
+    colorScheme: scheme,
+    fontFamily: 'Roboto',
+  );
+  return base.copyWith(
+    scaffoldBackgroundColor: dark
+        ? const Color(0xFF17131E)
+        : const Color(0xFFFAF9FD),
+    textTheme: base.textTheme.copyWith(
+      headlineMedium: base.textTheme.headlineMedium?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: -1,
+      ),
+      titleLarge: base.textTheme.titleLarge?.copyWith(
+        fontWeight: FontWeight.w700,
+      ),
+      bodyMedium: base.textTheme.bodyMedium?.copyWith(height: 1.4),
+    ),
+    dividerColor: scheme.outlineVariant,
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: dark ? const Color(0xFF292332) : const Color(0xFFFAF9FD),
+      helperMaxLines: 3,
+      errorMaxLines: 3,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: scheme.outlineVariant),
+      ),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 19),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
     ),
   );
 }
@@ -128,7 +151,7 @@ class Brand extends StatelessWidget {
         width: 38,
         height: 38,
         decoration: BoxDecoration(
-          color: purple,
+          color: brandPurple,
           borderRadius: BorderRadius.circular(12),
         ),
         child: const Icon(
@@ -138,13 +161,13 @@ class Brand extends StatelessWidget {
         ),
       ),
       const SizedBox(width: 11),
-      const Text(
+      Text(
         'Fray',
         style: TextStyle(
           fontSize: 29,
           fontWeight: FontWeight.w800,
           letterSpacing: -1,
-          color: ink,
+          color: context.ink,
         ),
       ),
     ],
@@ -158,7 +181,7 @@ class Workspace extends StatefulWidget {
   State<Workspace> createState() => _WorkspaceState();
 }
 
-class _WorkspaceState extends State<Workspace> {
+class _WorkspaceState extends State<Workspace> with LocalizedState {
   int tab = 0;
   late DateTime selected = DateUtils.dateOnly(store.clock.now());
   late DateTime month = DateTime(selected.year, selected.month);
@@ -167,12 +190,12 @@ class _WorkspaceState extends State<Workspace> {
   String? loadError;
   int loadSequence = 0;
   FrayStore get store => widget.store;
-  static const labels = [
-    'Calendar',
-    'Entries',
-    'Projects',
-    'Reports',
-    'Profile',
+  List<String> get labels => [
+    tr('Calendar'),
+    tr('Entries'),
+    tr('Projects'),
+    tr('Reports'),
+    tr('Profile'),
   ];
   static const icons = [
     Icons.calendar_month_outlined,
@@ -214,7 +237,8 @@ class _WorkspaceState extends State<Workspace> {
 
   void message(String text) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(tr(text))));
     }
   }
 
@@ -222,13 +246,13 @@ class _WorkspaceState extends State<Workspace> {
     try {
       await run();
     } catch (e) {
-      message(e.toString());
+      message(tr(e.toString()));
     }
   }
 
   Future<void> editEntry([TimeRecord? entry]) async {
     if (!store.items.any((i) => !i.archived)) {
-      message('Create a project or activity first.');
+      message(tr('Create a project or activity first.'));
       await editItem();
       return;
     }
@@ -252,7 +276,7 @@ class _WorkspaceState extends State<Workspace> {
       Container(
         padding: padding,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.surface,
           border: Border.all(color: line),
           borderRadius: BorderRadius.circular(20),
         ),
@@ -289,8 +313,8 @@ class _WorkspaceState extends State<Workspace> {
                       horizontal: wide ? 36 : 20,
                       vertical: 19,
                     ),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
+                    decoration: BoxDecoration(
+                      color: context.surface,
                       border: Border(bottom: BorderSide(color: line)),
                     ),
                     child: Row(
@@ -299,15 +323,17 @@ class _WorkspaceState extends State<Workspace> {
                           const Brand()
                         else
                           Text(
-                            'My workspace  /  ${labels[tab]}',
-                            style: const TextStyle(color: muted),
+                            tr('My workspace  /  {page}', {
+                              'page': labels[tab],
+                            }),
+                            style: TextStyle(color: muted),
                           ),
                         const Spacer(),
-                        const Icon(Icons.lock_outline, color: muted, size: 16),
+                        Icon(Icons.lock_outline, color: muted, size: 16),
                         const SizedBox(width: 7),
                         if (wide)
-                          const Text(
-                            'Personal workspace',
+                          Text(
+                            tr('Personal workspace'),
                             style: TextStyle(color: muted, fontSize: 12),
                           ),
                         const SizedBox(width: 20),
@@ -316,7 +342,7 @@ class _WorkspaceState extends State<Workspace> {
                           backgroundColor: lavender,
                           child: Text(
                             store.name!.substring(0, 1).toUpperCase(),
-                            style: const TextStyle(color: purple, fontSize: 13),
+                            style: TextStyle(color: purple, fontSize: 13),
                           ),
                         ),
                         if (wide) ...[
@@ -337,12 +363,11 @@ class _WorkspaceState extends State<Workspace> {
                         horizontal: 24,
                         vertical: 9,
                       ),
-                      child: const Text(
-                        'Demo workspace · Try adding and editing time. Changes reset when you leave.',
-                        style: TextStyle(
-                          color: Color(0xFF6149AB),
-                          fontSize: 12,
+                      child: Text(
+                        tr(
+                          'Demo workspace · Try adding and editing time. Changes reset when you leave.',
                         ),
+                        style: TextStyle(color: purple, fontSize: 12),
                       ),
                     ),
                   if (loading) const LinearProgressIndicator(minHeight: 2),
@@ -362,14 +387,16 @@ class _WorkspaceState extends State<Workspace> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        loadError!,
-                                        style: const TextStyle(
-                                          color: Colors.red,
+                                        tr(loadError!),
+                                        style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .error,
                                         ),
                                       ),
                                       TextButton(
                                         onPressed: load,
-                                        child: const Text('Retry'),
+                                        child: Text(tr('Retry')),
                                       ),
                                     ],
                                   ),
@@ -386,7 +413,7 @@ class _WorkspaceState extends State<Workspace> {
                                 _ => profilePage(),
                               },
                               const SizedBox(height: 26),
-                              const Row(
+                              Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
@@ -394,10 +421,10 @@ class _WorkspaceState extends State<Workspace> {
                                     size: 15,
                                     color: muted,
                                   ),
-                                  SizedBox(width: 8),
+                                  const SizedBox(width: 8),
                                   Flexible(
                                     child: Text(
-                                      'A little progress, every day.',
+                                      tr('A little progress, every day.'),
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: muted,
@@ -424,8 +451,8 @@ class _WorkspaceState extends State<Workspace> {
   Widget sidebar() => Container(
     width: 224,
     padding: const EdgeInsets.fromLTRB(23, 30, 23, 22),
-    decoration: const BoxDecoration(
-      color: Colors.white,
+    decoration: BoxDecoration(
+      color: context.surface,
       border: Border(right: BorderSide(color: line)),
     ),
     child: Column(
@@ -433,10 +460,10 @@ class _WorkspaceState extends State<Workspace> {
       children: [
         const Brand(),
         const SizedBox(height: 47),
-        const Padding(
-          padding: EdgeInsets.only(left: 13, bottom: 15),
+        Padding(
+          padding: const EdgeInsets.only(left: 13, bottom: 15),
           child: Text(
-            'WORKSPACE',
+            tr('WORKSPACE'),
             style: TextStyle(
               fontSize: 10,
               letterSpacing: 1.8,
@@ -456,10 +483,7 @@ class _WorkspaceState extends State<Workspace> {
                 borderRadius: BorderRadius.circular(12),
                 onTap: () => setState(() => tab = i),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   child: Row(
                     children: [
                       Icon(
@@ -468,13 +492,15 @@ class _WorkspaceState extends State<Workspace> {
                         color: i == tab ? purple : muted,
                       ),
                       const SizedBox(width: 13),
-                      Text(
-                        labels[i],
-                        style: TextStyle(
-                          color: i == tab ? purple : muted,
-                          fontWeight: i == tab
-                              ? FontWeight.w700
-                              : FontWeight.w500,
+                      Expanded(
+                        child: Text(
+                          labels[i],
+                          style: TextStyle(
+                            color: i == tab ? purple : muted,
+                            fontWeight: i == tab
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -488,30 +514,30 @@ class _WorkspaceState extends State<Workspace> {
         Container(
           padding: const EdgeInsets.all(17),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8F6FE),
+            color: lavender,
             borderRadius: BorderRadius.circular(16),
           ),
-          child: const Column(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(Icons.auto_awesome_outlined, color: purple, size: 24),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               Text(
-                'Make room for focus.',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                tr('Make room for focus.'),
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
               ),
-              SizedBox(height: 7),
+              const SizedBox(height: 7),
               Text(
-                'Notice where your time goes. Make space for what matters.',
+                tr('Notice where your time goes. Make space for what matters.'),
                 style: TextStyle(fontSize: 12, color: muted, height: 1.6),
               ),
             ],
           ),
         ),
         const SizedBox(height: 22),
-        const Center(
+        Center(
           child: Text(
-            'FRAY  /  TIME WELL SPENT',
+            tr('FRAY  /  TIME WELL SPENT'),
             style: TextStyle(fontSize: 9, color: muted, letterSpacing: 1.2),
           ),
         ),
@@ -521,18 +547,18 @@ class _WorkspaceState extends State<Workspace> {
 
   Widget heading(bool wide) {
     final titles = [
-      'Your time, at a glance.',
-      'Small moments. Real progress.',
-      'Space for every kind of work.',
-      'See the bigger picture.',
-      'Your own quiet corner.',
+      tr('Your time, at a glance.'),
+      tr('Small moments. Real progress.'),
+      tr('Space for every kind of work.'),
+      tr('See the bigger picture.'),
+      tr('Your own quiet corner.'),
     ];
     final subtitles = [
-      'A clear view of your days, with room for what matters.',
-      'Everything you’ve worked on, one entry at a time.',
-      'Organize projects and the activities you come back to.',
-      'A thoughtful look at where your time went.',
-      'Your workspace and account security.',
+      tr('A clear view of your days, with room for what matters.'),
+      tr('Everything you’ve worked on, one entry at a time.'),
+      tr('Organize projects and the activities you come back to.'),
+      tr('A thoughtful look at where your time went.'),
+      tr('Your workspace and account security.'),
     ];
     return Wrap(
       alignment: WrapAlignment.spaceBetween,
@@ -549,7 +575,7 @@ class _WorkspaceState extends State<Workspace> {
                 DateFormat.yMMMMEEEEd(locale)
                     .format(store.clock.now())
                     .toUpperCase(),
-                style: const TextStyle(
+                style: TextStyle(
                   color: muted,
                   fontSize: 10,
                   letterSpacing: 1.6,
@@ -565,7 +591,7 @@ class _WorkspaceState extends State<Workspace> {
               const SizedBox(height: 9),
               Text(
                 subtitles[tab],
-                style: const TextStyle(color: muted, fontSize: 13),
+                style: TextStyle(color: muted, fontSize: 13),
               ),
             ],
           ),
@@ -574,19 +600,19 @@ class _WorkspaceState extends State<Workspace> {
           FilledButton.icon(
             onPressed: loading ? null : () => editEntry(),
             icon: const Icon(Icons.add, size: 19),
-            label: const Text('Add entry'),
+            label: Text(tr('Add entry')),
           ),
         if (tab == 2)
           FilledButton.icon(
             onPressed: () => editItem(),
             icon: const Icon(Icons.add, size: 19),
-            label: const Text('New project / activity'),
+            label: Text(tr('New project / activity')),
           ),
         if (tab == 3)
           FilledButton.icon(
             onPressed: export,
             icon: const Icon(Icons.file_download_outlined, size: 19),
-            label: const Text('Export CSV'),
+            label: Text(tr('Export CSV')),
           ),
       ],
     );
@@ -602,8 +628,8 @@ class _WorkspaceState extends State<Workspace> {
         children: [
           Expanded(
             child: stat(
-              'TIME THIS MONTH',
-              durationLabel(total),
+              tr('TIME THIS MONTH'),
+              context.duration(total),
               Icons.schedule_outlined,
               compact,
             ),
@@ -611,7 +637,7 @@ class _WorkspaceState extends State<Workspace> {
           const SizedBox(width: 12),
           Expanded(
             child: stat(
-              'DAYS WITH ENTRIES',
+              tr('DAYS WITH ENTRIES'),
               '$days',
               Icons.calendar_today_outlined,
               compact,
@@ -620,7 +646,7 @@ class _WorkspaceState extends State<Workspace> {
           const SizedBox(width: 12),
           Expanded(
             child: stat(
-              'ITEMS WORKED ON',
+              tr('ITEMS WORKED ON'),
               '$count',
               Icons.folder_outlined,
               compact,
@@ -661,7 +687,7 @@ class _WorkspaceState extends State<Workspace> {
   Widget monthPicker() => Row(
     children: [
       IconButton(
-        tooltip: 'Previous month',
+        tooltip: tr('Previous month'),
         onPressed: () => moveMonth(-1),
         icon: const Icon(Icons.chevron_left, size: 20),
       ),
@@ -673,7 +699,7 @@ class _WorkspaceState extends State<Workspace> {
         ),
       ),
       IconButton(
-        tooltip: 'Next month',
+        tooltip: tr('Next month'),
         onPressed: () => moveMonth(1),
         icon: const Icon(Icons.chevron_right, size: 20),
       ),
@@ -717,7 +743,7 @@ class _WorkspaceState extends State<Workspace> {
                 });
                 load();
               },
-              child: const Text('Today'),
+              child: Text(tr('Today')),
             ),
           ],
         ),
@@ -737,7 +763,7 @@ class _WorkspaceState extends State<Workspace> {
                       child: Center(
                         child: Text(
                           d,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 9,
                             letterSpacing: .6,
                             fontWeight: FontWeight.w600,
@@ -779,7 +805,9 @@ class _WorkspaceState extends State<Workspace> {
                 return Semantics(
                   button: true,
                   selected: active,
-                  label: 'Select ${dayKey(day)}',
+                  label: tr('Select {date}', {
+                    'date': DateFormat.yMMMMEEEEd(locale).format(day),
+                  }),
                   child: InkWell(
                     onTap: () {
                       setState(() {
@@ -797,7 +825,7 @@ class _WorkspaceState extends State<Workspace> {
                         color: active
                             ? lavender
                             : today
-                            ? const Color(0xFFFAF8FF)
+                            ? lavender.withValues(alpha: .4)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
@@ -806,17 +834,14 @@ class _WorkspaceState extends State<Workspace> {
                               : line.withValues(alpha: .5),
                         ),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 3,
-                        vertical: 8,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 8),
                       child: Column(
                         children: [
                           Text(
                             '${day.day}',
                             style: TextStyle(
                               color: day.month != month.month
-                                  ? const Color(0xFFB8B3C5)
+                                  ? muted.withValues(alpha: .6)
                                   : active
                                   ? purple
                                   : ink,
@@ -849,10 +874,10 @@ class _WorkspaceState extends State<Workspace> {
                           if (!small && records.isNotEmpty) ...[
                             const SizedBox(height: 6),
                             Text(
-                              durationLabel(
+                              context.duration(
                                 records.fold(0, (s, e) => s + e.minutes),
                               ),
-                              style: const TextStyle(fontSize: 9, color: muted),
+                              style: TextStyle(fontSize: 9, color: muted),
                             ),
                           ],
                         ],
@@ -865,13 +890,15 @@ class _WorkspaceState extends State<Workspace> {
           },
         ),
         const SizedBox(height: 20),
-        const Row(
+        Row(
           children: [
             Icon(Icons.circle, size: 7, color: purple),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Flexible(
               child: Text(
-                'Each color is a project or activity. Select a day to see your time.',
+                tr(
+                  'Each color is a project or activity. Select a day to see your time.',
+                ),
                 style: TextStyle(color: muted, fontSize: 10),
               ),
             ),
@@ -892,11 +919,7 @@ class _WorkspaceState extends State<Workspace> {
         children: [
           Text(
             DateFormat.EEEE(locale).format(selected).toUpperCase(),
-            style: const TextStyle(
-              color: muted,
-              fontSize: 10,
-              letterSpacing: 1.5,
-            ),
+            style: TextStyle(color: muted, fontSize: 10, letterSpacing: 1.5),
           ),
           const SizedBox(height: 7),
           Text(
@@ -912,36 +935,37 @@ class _WorkspaceState extends State<Workspace> {
             ),
             child: Row(
               children: [
-                const Text(
-                  'Total tracked',
-                  style: TextStyle(color: purple, fontSize: 12),
-                ),
-                const Spacer(),
-                Text(
-                  durationLabel(rows.fold(0, (s, e) => s + e.minutes)),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: purple,
+                Expanded(
+                  child: Text(
+                    tr('Total tracked'),
+                    style: TextStyle(color: purple, fontSize: 12),
                   ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  context.duration(rows.fold(0, (s, e) => s + e.minutes)),
+                  style: TextStyle(fontWeight: FontWeight.w700, color: purple),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 23),
           if (rows.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 25),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 25),
               child: Text(
-                'A little space in your day.\nAdd your first entry when you’re ready.',
+                tr(
+                  'A little space in your day.\nAdd your first entry when you’re ready.',
+                ),
                 style: TextStyle(color: muted, height: 1.8),
               ),
             ),
           if (timed.isNotEmpty) ...[
-            sectionLabel('ON THE CLOCK'),
+            sectionLabel(tr('ON THE CLOCK')),
             ...timed.map(entryCard),
           ],
           if (unscheduled.isNotEmpty) ...[
-            sectionLabel('UNSCHEDULED TIME'),
+            sectionLabel(tr('UNSCHEDULED TIME')),
             ...unscheduled.map(entryCard),
           ],
           const SizedBox(height: 12),
@@ -950,13 +974,13 @@ class _WorkspaceState extends State<Workspace> {
             child: OutlinedButton.icon(
               onPressed: () => editEntry(),
               icon: const Icon(Icons.add, size: 17),
-              label: const Text('Add time to this day'),
+              label: Text(tr('Add time to this day')),
             ),
           ),
           const SizedBox(height: 12),
-          const Center(
+          Center(
             child: Text(
-              'Your entries are visible only to you.',
+              tr('Your entries are visible only to you.'),
               style: TextStyle(color: muted, fontSize: 10),
             ),
           ),
@@ -970,7 +994,7 @@ class _WorkspaceState extends State<Workspace> {
     padding: const EdgeInsets.only(bottom: 12),
     child: Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 9,
         letterSpacing: 1.2,
         color: muted,
@@ -991,7 +1015,9 @@ class _WorkspaceState extends State<Workspace> {
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              border: Border(left: BorderSide(color: item.color, width: 3)),
+              border: Border(
+                left: BorderSide(color: context.accent(item.color), width: 3),
+              ),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
@@ -1010,9 +1036,9 @@ class _WorkspaceState extends State<Workspace> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      durationLabel(entry.minutes),
+                      context.duration(entry.minutes),
                       style: TextStyle(
-                        color: item.color,
+                        color: context.accent(item.color),
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1022,7 +1048,7 @@ class _WorkspaceState extends State<Workspace> {
                 const SizedBox(height: 7),
                 Text(
                   entry.timeLabel(context),
-                  style: const TextStyle(color: muted, fontSize: 11),
+                  style: TextStyle(color: muted, fontSize: 11),
                 ),
                 if (entry.notes.isNotEmpty) ...[
                   const SizedBox(height: 8),
@@ -1030,7 +1056,7 @@ class _WorkspaceState extends State<Workspace> {
                     entry.notes,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: muted, fontSize: 11),
+                    style: TextStyle(color: muted, fontSize: 11),
                   ),
                 ],
               ],
@@ -1050,9 +1076,11 @@ class _WorkspaceState extends State<Workspace> {
           SizedBox(width: 310, child: monthPicker()),
           const Divider(height: 32),
           if (rows.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(30),
-              child: Text('No entries this month. Start with a small moment.'),
+            Padding(
+              padding: const EdgeInsets.all(30),
+              child: Text(
+                tr('No entries this month. Start with a small moment.'),
+              ),
             ),
           for (final day in rows.map((e) => e.date).toSet()) ...[
             sectionLabel(
@@ -1090,9 +1118,9 @@ class _WorkspaceState extends State<Workspace> {
       children: [
         TextField(
           onChanged: (v) => setState(() => search = v),
-          decoration: const InputDecoration(
-            hintText: 'Find a project or activity…',
-            prefixIcon: Icon(Icons.search),
+          decoration: InputDecoration(
+            hintText: tr('Find a project or activity…'),
+            prefixIcon: const Icon(Icons.search),
           ),
         ),
         const SizedBox(height: 16),
@@ -1102,13 +1130,13 @@ class _WorkspaceState extends State<Workspace> {
           children: [
             ...['All', 'Projects', 'Activities'].map(
               (label) => ChoiceChip(
-                label: Text(label),
+                label: Text(tr(label)),
                 selected: filter == label,
                 onSelected: (_) => setState(() => filter = label),
               ),
             ),
             FilterChip(
-              label: const Text('Archived'),
+              label: Text(tr('Archived')),
               selected: showArchived,
               onSelected: (v) => setState(() => showArchived = v),
             ),
@@ -1117,8 +1145,10 @@ class _WorkspaceState extends State<Workspace> {
         const SizedBox(height: 22),
         if (items.isEmpty)
           panel(
-            const Text(
-              'Nothing here yet. Create a project or activity to get started.',
+            Text(
+              tr(
+                'Nothing here yet. Create a project or activity to get started.',
+              ),
             ),
           ),
         ...items.map(
@@ -1137,7 +1167,7 @@ class _WorkspaceState extends State<Workspace> {
                       item.kind == 'project'
                           ? Icons.folder_outlined
                           : Icons.repeat,
-                      color: item.color,
+                      color: context.accent(item.color),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -1155,19 +1185,19 @@ class _WorkspaceState extends State<Workspace> {
                           Text(
                             item.description.isEmpty
                                 ? (item.kind == 'project'
-                                      ? 'Personal project'
-                                      : 'Recurring activity')
+                                      ? tr('Personal project')
+                                      : tr('Recurring activity'))
                                 : item.description,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: muted, fontSize: 12),
+                            style: TextStyle(color: muted, fontSize: 12),
                           ),
                         ],
                       ),
                     ),
                   ),
                   IconButton(
-                    tooltip: item.pinned ? 'Unpin' : 'Pin',
+                    tooltip: item.pinned ? tr('Unpin') : tr('Pin'),
                     onPressed: () => action(
                       () => store.saveItem({
                         ...item.toJson(),
@@ -1195,10 +1225,12 @@ class _WorkspaceState extends State<Workspace> {
                       }
                     },
                     itemBuilder: (_) => [
-                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(value: 'edit', child: Text(tr('Edit'))),
                       PopupMenuItem(
                         value: 'archive',
-                        child: Text(item.archived ? 'Unarchive' : 'Archive'),
+                        child: Text(
+                          item.archived ? tr('Unarchive') : tr('Archive'),
+                        ),
                       ),
                     ],
                   ),
@@ -1236,20 +1268,24 @@ class _WorkspaceState extends State<Workspace> {
             children: [
               SizedBox(width: 310, child: monthPicker()),
               const SizedBox(height: 22),
-              const Text(
-                'My time',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              Text(
+                tr('My time'),
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 7),
-              const Text(
-                'Personal totals by project and activity. Archived items stay in your reports.',
+              Text(
+                tr(
+                  'Personal totals by project and activity. Archived items stay in your reports.',
+                ),
                 style: TextStyle(color: muted, fontSize: 12),
               ),
               const SizedBox(height: 30),
               if (sorted.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text('Your report will take shape as you log time.'),
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    tr('Your report will take shape as you log time.'),
+                  ),
                 ),
               ...sorted.map(
                 (row) => Padding(
@@ -1263,13 +1299,11 @@ class _WorkspaceState extends State<Workspace> {
                           Expanded(
                             child: Text(
                               row.key.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                              ),
+                              style: const TextStyle(fontWeight: FontWeight.w500),
                             ),
                           ),
                           Text(
-                            durationLabel(row.value),
+                            context.duration(row.value),
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                         ],
@@ -1289,14 +1323,16 @@ class _WorkspaceState extends State<Workspace> {
               const Divider(height: 30),
               Row(
                 children: [
-                  const Text(
-                    'Total time',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                  Expanded(
+                    child: Text(
+                      tr('Total time'),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   Text(
-                    durationLabel(total),
-                    style: const TextStyle(
+                    context.duration(total),
+                    style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
                       color: purple,
@@ -1305,8 +1341,10 @@ class _WorkspaceState extends State<Workspace> {
                 ],
               ),
               const SizedBox(height: 16),
-              const Text(
-                'CSV exports contain totals in minutes and never include private notes.',
+              Text(
+                tr(
+                  'CSV exports contain totals in minutes and never include private notes.',
+                ),
                 style: TextStyle(fontSize: 11, color: muted),
               ),
             ],
@@ -1325,45 +1363,60 @@ class _WorkspaceState extends State<Workspace> {
           backgroundColor: lavender,
           child: Text(
             store.name!.substring(0, 1).toUpperCase(),
-            style: const TextStyle(color: purple, fontSize: 25),
+            style: TextStyle(color: purple, fontSize: 25),
           ),
         ),
         const SizedBox(height: 20),
         Text(store.name!, style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 5),
-        Text(store.email!, style: const TextStyle(color: muted)),
+        Text(
+          store.demo ? tr('Demo workspace') : store.email!,
+          style: TextStyle(color: muted),
+        ),
         const Divider(height: 40),
-        const ListTile(
+        ListTile(
           contentPadding: EdgeInsets.zero,
           leading: Icon(Icons.shield_outlined, color: purple),
-          title: Text('Two-factor authentication'),
+          title: Text(tr('Two-factor authentication')),
           subtitle: Text(
-            'Real accounts require an authenticator or a single-use recovery code.',
-          ),
-        ),
-        const ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(Icons.lock_outline, color: purple),
-          title: Text('Private time records'),
-          subtitle: Text(
-            'Only you can access your projects, entries, notes, and reports.',
+            tr(
+              'Real accounts require an authenticator or a single-use recovery code.',
+            ),
           ),
         ),
         ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.public, color: purple),
-          title: Text('Device time zone: ${store.clock.zone}'),
+          leading: Icon(Icons.lock_outline, color: purple),
+          title: Text(tr('Private time records')),
           subtitle: Text(
-            store.clock.detected
-                ? 'Dates and times follow your device locale. Saved entries keep the timezone in which they were recorded.'
-                : 'The device timezone could not be detected. New timed entries use UTC and show this in the editor.',
+            tr(
+              'Only you can access your projects, entries, notes, and reports.',
+            ),
           ),
         ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(Icons.public, color: purple),
+          title: Text(
+            tr('Device time zone: {zone}', {'zone': store.clock.zone}),
+          ),
+          subtitle: Text(
+            store.clock.detected
+                ? tr(
+                    'Dates follow your selected language. Times follow your device clock preference. Saved entries keep their original timezone.',
+                  )
+                : tr(
+                    'The device timezone could not be detected. New timed entries use UTC and show this in the editor.',
+                  ),
+          ),
+        ),
+        const Divider(height: 40),
+        const PreferencesPanel(),
         const SizedBox(height: 20),
         OutlinedButton.icon(
           onPressed: () => action(store.signOut),
           icon: const Icon(Icons.logout, size: 17),
-          label: Text(store.demo ? 'Leave demo' : 'Sign out'),
+          label: Text(store.demo ? tr('Leave demo') : tr('Sign out')),
         ),
       ],
     ),

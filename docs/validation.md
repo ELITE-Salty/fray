@@ -15,11 +15,11 @@ This records local application and Docker deployment checks. A separate public c
 
 | Check | Result |
 |---|---|
-| Django tests | 28 passed with SQLite, 1 PostgreSQL-only race check skipped; all 29 passed with PostgreSQL/Redis |
+| Django tests | 32 passed with SQLite, 1 PostgreSQL-only race check skipped; the preceding authentication release passed all 29 tests with PostgreSQL/Redis |
 | Django migration drift | No changes detected |
 | Python syntax compilation | Passed |
 | Flutter static analysis | No issues found |
-| Flutter unit/widget tests | 18 passed |
+| Flutter unit/widget tests | 29 passed, including persisted language/theme preferences and all three languages in dark mode at phone/desktop widths |
 | Flutter release web build | Passed, renderer and Roboto fonts bundled locally |
 | Android development APK | Built successfully with the hosted API URL |
 | Android device smoke test | Passed: native timezone detection, secure-storage write/read/delete, date and time dialogs |
@@ -33,7 +33,7 @@ This records local application and Docker deployment checks. A separate public c
 | Screenshots | Captured from actual Flutter web UI with synthetic demo data |
 | Backup restore | Dump restored into a separate temporary database with 1 fixture account and 12 entries; temporary database and source fixture account removed |
 | Portainer stack YAML | Validated with Docker Compose and fresh isolated volumes; bundled PostgreSQL initialization and Prometheus configuration passed; no host bind mounts needed |
-| Split Android APKs | ARM64, ARMv7 and x86_64 development APKs built successfully |
+| Split Android APKs | Updated ARM64, ARMv7 and x86_64 development APKs built; ARM64 installed over the existing app on Samsung S25 Ultra and launched successfully |
 | Mailjet network | SMTP connection with STARTTLS from the local API container passed; no credentials or real email used |
 | Mobile browser signup | Email code from local console mail, MFA enrollment resumed after reload, TOTP confirmation, recovery-code acknowledgement, logout and two-step login passed; synthetic account removed |
 
@@ -63,9 +63,13 @@ The Portainer stack was exercised using Compose on the local Docker engine, incl
 
 - Vagrant, cloud-init, fresh Ubuntu installation, deployment speed, or service reboot behavior.
 - Broad concurrent-request stress testing under PostgreSQL row locking; the targeted login race check does not prove all race conditions.
-- Physical Android devices, real mobile login through Cloudflare, iOS simulator/device, release signing, or store publishing.
+- Real mobile signup/login through Cloudflare with Mailjet, iOS simulator/device, release signing, or store publishing. The development APK was installed and launched on the connected Samsung S25 Ultra; this is not an end-to-end hosted authentication test.
 - Load testing, exhaustive accessibility review, full disaster recovery on a second host, Grafana dashboards, or alert notification delivery.
 - Actual Mailjet credential/sender acceptance and inbox delivery after remote SMTP setup.
 - Collaboration, self-service password reset/MFA rotation, XLSX/PDF export, or account deletion.
 
 Repeat the commands in the repository README after changes. Keep future deployment evidence separate from these local application screenshots.
+
+## Language and appearance update
+
+Slovenian and Croatian browser contexts verified system-language defaults, dark OS appearance, explicit English/Light selections surviving reload, switching back to their language/Dark, and the translated Profile. Screenshots: [Slovenian settings](screenshots/settings-sl-SI-dark.png), [Croatian settings](screenshots/settings-hr-HR-dark.png), [Slovenian profile](screenshots/profile-sl-SI-dark.png), [Croatian profile](screenshots/profile-hr-HR-dark.png). Backend tests additionally verify localized verification emails and password errors, CSV headings/type labels, and unchanged user content and JSON enum values.

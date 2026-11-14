@@ -158,3 +158,20 @@ class TrackingTests(TestCase):
         self.assertContains(self.client.get('/metrics'), 'fray_http_requests_total')
         with patch('tracker.views.cache.get', return_value=None):
             self.assertEqual(self.client.get('/api/health').status_code, 503)
+
+    def test_localized_csv_keeps_user_content_and_json_enums(self):
+        self.item.name = 'Moj čudoviti projekt'
+        self.item.save()
+        self.assertEqual(self.post('/api/entries', self.entry()).status_code, 201)
+        for language, header, kind in [
+            ('sl', 'Projekt / dejavnost,Vrsta,Minute', 'Projekt'),
+            ('hr', 'Projekt / aktivnost,Vrsta,Minute', 'Projekt'),
+            ('en', 'Project / activity,Type,Minutes', 'project'),
+        ]:
+            response = self.client.get('/api/reports/monthly?month=2026-11&format=csv', HTTP_ACCEPT_LANGUAGE=language)
+            text = response.content.decode('utf-8-sig')
+            self.assertTrue(text.startswith(header))
+            self.assertIn(f'Moj čudoviti projekt,{kind},90', text)
+            result = self.client.get('/api/reports/monthly?month=2026-11', HTTP_ACCEPT_LANGUAGE=language).json()
+            self.assertEqual(result['items'][0]['item__kind'], 'project')
+            self.assertEqual(result['items'][0]['item__name'], self.item.name)

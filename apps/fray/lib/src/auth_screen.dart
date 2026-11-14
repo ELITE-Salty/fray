@@ -1,8 +1,11 @@
+import '../l10n/localization.dart';
+import 'preferences.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import 'app.dart' show Brand, ink, muted;
+import 'app.dart' show Brand;
 import 'data.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -12,7 +15,7 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen> with LocalizedState {
   final email = TextEditingController(),
       password = TextEditingController(),
       name = TextEditingController(),
@@ -75,10 +78,10 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> submit() => perform(() async {
     if (stage == 'credentials') {
       if (email.text.trim().isEmpty || password.text.isEmpty) {
-        throw ApiException('Enter your email and password.');
+        throw ApiException(tr('Enter your email and password.'));
       }
       if (signingUp && password.text != confirmation.text) {
-        throw ApiException('The passwords do not match.');
+        throw ApiException(tr('The passwords do not match.'));
       }
       final result = signingUp
           ? await widget.store.beginSignUp(
@@ -126,27 +129,39 @@ class _LoginScreenState extends State<LoginScreen> {
   });
 
   String get title => switch (stage) {
-    'email' => 'Check your email',
-    'enroll' => 'Protect your account',
-    'mfa' => 'Enter your security code',
-    'recovery' => 'Keep a way back in',
+    'email' => tr('Check your email'),
+    'enroll' => tr('Protect your account'),
+    'mfa' => tr('Enter your security code'),
+    'recovery' => tr('Keep a way back in'),
     _ =>
       signingUp
-          ? 'Make time for yourself.'
-          : 'A little clarity.\nA lot more focus.',
+          ? tr('Make time for yourself.')
+          : tr('A little clarity.\nA lot more focus.'),
   };
 
   String get subtitle => switch (stage) {
-    'email' =>
-      'Enter the six-digit code sent to ${email.text}. Check your spam folder too.',
-    'enroll' => 'Your email is verified. Add Fray to your authenticator, then enter its code.',
-    'mfa' =>
-      'Use your authenticator or a recovery code to finish signing in as ${email.text}.',
-    'recovery' => 'Save these codes somewhere private. Each works once if you lose access to your authenticator. They are shown only now.',
+    'email' => tr(
+      'Enter the six-digit code sent to {email}. Check your spam folder too.',
+      {'email': email.text},
+    ),
+    'enroll' => tr(
+      'Your email is verified. Add Fray to your authenticator, then enter its code.',
+    ),
+    'mfa' => tr(
+      'Use your authenticator or a recovery code to finish signing in as {email}.',
+      {'email': email.text},
+    ),
+    'recovery' => tr(
+      'Save these codes somewhere private. Each works once if you lose access to your authenticator. They are shown only now.',
+    ),
     _ =>
       signingUp
-          ? 'Create your account, verify your email, and set up two-factor authentication.'
-          : 'Your time, projects, and everyday progress.\nAll in one quiet place.',
+          ? tr(
+              'Create your account, verify your email, and set up two-factor authentication.',
+            )
+          : tr(
+              'Your time, projects, and everyday progress.\nAll in one quiet place.',
+            ),
   };
 
   @override
@@ -159,6 +174,10 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const Align(
+                alignment: Alignment.centerRight,
+                child: PreferencesButton(),
+              ),
               const Center(child: Brand()),
               const SizedBox(height: 32),
               Text(
@@ -171,7 +190,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Text(
                 subtitle,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: muted, fontSize: 15, height: 1.6),
+                style: TextStyle(color: muted, fontSize: 15, height: 1.6),
               ),
               const SizedBox(height: 28),
               if (stage == 'credentials') ...[
@@ -180,8 +199,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: name,
                     enabled: !busy,
                     autofillHints: const [AutofillHints.name],
-                    decoration: const InputDecoration(
-                      labelText: 'Name (optional)',
+                    decoration: InputDecoration(
+                      labelText: tr('Name (optional)'),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -192,9 +211,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const [AutofillHints.username],
                   autocorrect: false,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.mail_outline_rounded),
+                  decoration: InputDecoration(
+                    labelText: tr('Email'),
+                    prefixIcon: const Icon(Icons.mail_outline_rounded),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -211,8 +230,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (!busy && !signingUp) submit();
                   },
                   decoration: InputDecoration(
-                    labelText: 'Password',
-                    helperText: signingUp ? 'At least 12 characters' : null,
+                    labelText: tr('Password'),
+                    helperText: signingUp ? tr('At least 12 characters') : null,
                     prefixIcon: const Icon(Icons.lock_outline_rounded),
                   ),
                 ),
@@ -225,8 +244,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     onSubmitted: (_) {
                       if (!busy) submit();
                     },
-                    decoration: const InputDecoration(
-                      labelText: 'Confirm password',
+                    decoration: InputDecoration(
+                      labelText: tr('Confirm password'),
                     ),
                   ),
                 ],
@@ -237,19 +256,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     data: challenge['uri'] as String,
                     size: 200,
                     backgroundColor: Colors.white,
-                    semanticsLabel: 'Authenticator setup QR code',
+                    semanticsLabel: tr('Authenticator setup QR code'),
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'On the same phone? Copy this setup key and add it manually in your authenticator as a time-based account.',
+                Text(
+                  tr(
+                    'On the same phone? Copy this setup key and add it manually in your authenticator as a time-based account.',
+                  ),
                   style: TextStyle(color: muted),
                 ),
                 const SizedBox(height: 10),
                 SelectableText(
                   challenge['secret'] as String,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontFamily: 'monospace', color: ink),
+                  style: TextStyle(fontFamily: 'monospace', color: ink),
                 ),
                 TextButton.icon(
                   onPressed: busy
@@ -266,7 +287,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           }
                         },
                   icon: const Icon(Icons.copy, size: 18),
-                  label: const Text('Copy setup key'),
+                  label: Text(tr('Copy setup key')),
                 ),
                 const SizedBox(height: 14),
               ],
@@ -285,10 +306,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                   decoration: InputDecoration(
                     labelText: stage == 'email'
-                        ? 'Email verification code'
+                        ? tr('Email verification code')
                         : stage == 'enroll'
-                        ? 'Authenticator code'
-                        : 'Authenticator or recovery code',
+                        ? tr('Authenticator code')
+                        : tr('Authenticator or recovery code'),
                     prefixIcon: const Icon(Icons.shield_outlined),
                   ),
                 ),
@@ -313,28 +334,30 @@ class _LoginScreenState extends State<LoginScreen> {
                     }
                   },
                   icon: const Icon(Icons.copy, size: 18),
-                  label: const Text('Copy recovery codes'),
+                  label: Text(tr('Copy recovery codes')),
                 ),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
                   value: savedCodes,
                   onChanged: (value) =>
                       setState(() => savedCodes = value ?? false),
-                  title: const Text('I have saved my recovery codes'),
+                  title: Text(tr('I have saved my recovery codes')),
                 ),
               ],
               if (error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 14),
                   child: Text(
-                    error!,
-                    style: const TextStyle(color: Colors.red),
+                    tr(error!),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ),
               if (notice != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 14),
-                  child: Text(notice!),
+                  child: Text(tr(notice!)),
                 ),
               const SizedBox(height: 22),
               FilledButton(
@@ -347,13 +370,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     : submit,
                 child: Text(
                   busy
-                      ? 'Please wait…'
+                      ? tr('Please wait…')
                       : switch (stage) {
-                          'email' => 'Verify email',
-                          'enroll' => 'Finish setup',
-                          'mfa' => 'Verify and sign in',
-                          'recovery' => 'Open my workspace',
-                          _ => signingUp ? 'Create account' : 'Sign in',
+                          'email' => tr('Verify email'),
+                          'enroll' => tr('Finish setup'),
+                          'mfa' => tr('Verify and sign in'),
+                          'recovery' => tr('Open my workspace'),
+                          _ => signingUp ? tr('Create account') : tr('Sign in'),
                         },
                 ),
               ),
@@ -369,12 +392,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             );
                           }
                         }),
-                  child: const Text('Resend email code'),
+                  child: Text(tr('Resend email code')),
                 ),
               if (['email', 'mfa', 'enroll'].contains(stage))
                 TextButton(
                   onPressed: busy ? null : back,
-                  child: const Text('Back to sign in'),
+                  child: Text(tr('Back to sign in')),
                 ),
               if (stage == 'credentials') ...[
                 TextButton(
@@ -388,8 +411,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         }),
                   child: Text(
                     signingUp
-                        ? 'Already have an account? Sign in'
-                        : 'Create an account',
+                        ? tr('Already have an account? Sign in')
+                        : tr('Create an account'),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -398,12 +421,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.all(18),
                   ),
-                  child: const Text('Explore the demo'),
+                  child: Text(tr('Explore the demo')),
                 ),
               ],
               const SizedBox(height: 20),
-              const Text(
-                'Private by default. Protected with two-factor authentication.',
+              Text(
+                tr(
+                  'Private by default. Protected with two-factor authentication.',
+                ),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: muted, fontSize: 12, height: 1.7),
               ),

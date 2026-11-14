@@ -20,7 +20,7 @@ INSTALLED_APPS = ['django.contrib.auth', 'django.contrib.contenttypes', 'django.
                   'django_otp', 'tracker']
 MIDDLEWARE = ['tracker.middleware.MetricsMiddleware', 'django.middleware.security.SecurityMiddleware',
               'django.middleware.clickjacking.XFrameOptionsMiddleware',
-              'django.contrib.sessions.middleware.SessionMiddleware', 'django.middleware.common.CommonMiddleware',
+              'django.contrib.sessions.middleware.SessionMiddleware', 'django.middleware.locale.LocaleMiddleware', 'django.middleware.common.CommonMiddleware',
               'django.middleware.csrf.CsrfViewMiddleware', 'django.contrib.auth.middleware.AuthenticationMiddleware',
               'django_otp.middleware.OTPMiddleware']
 ROOT_URLCONF = 'fray.urls'
@@ -87,3 +87,9 @@ LOGGING = {'version': 1, 'disable_existing_loggers': False,
     'formatters': {'plain': {'format': '{asctime} {levelname} {name} {message}', 'style': '{'}},
     'handlers': {'console': {'class': 'logging.StreamHandler', 'formatter': 'plain'}},
     'root': {'handlers': ['console'], 'level': 'INFO'}}
+
+# Match the Flutter interface; dates and API enum values remain language-neutral.
+LANGUAGE_CODE = 'en'
+LANGUAGES = [('en', 'English'), ('sl', 'Slovenščina'), ('hr', 'Hrvatski')]
+USE_I18N = True
+LOCALE_PATHS = [BASE_DIR / 'locale']

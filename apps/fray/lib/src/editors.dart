@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 
 import 'time_context.dart';
@@ -18,7 +20,7 @@ class EntryEditor extends StatefulWidget {
   State<EntryEditor> createState() => _EntryEditorState();
 }
 
-class _EntryEditorState extends State<EntryEditor> {
+class _EntryEditorState extends State<EntryEditor> with LocalizedState {
   final form = GlobalKey<FormState>();
   late final TextEditingController minutes, notes;
   late DateTime day;
@@ -136,7 +138,11 @@ class _EntryEditorState extends State<EntryEditor> {
         initialValue: matching,
         isExpanded: true,
         decoration: InputDecoration(
-          labelText: '${isStart ? 'Start' : 'End'} occurrence (clock change)',
+          labelText: tr(
+            isStart
+                ? 'Start occurrence (clock change)'
+                : 'End occurrence (clock change)',
+          ),
         ),
         items: options
             .asMap()
@@ -145,7 +151,7 @@ class _EntryEditorState extends State<EntryEditor> {
               (e) => DropdownMenuItem(
                 value: e.value,
                 child: Text(
-                  '${e.key == 0 ? 'First' : 'Second'} · ${clock.offsetLabel(e.value)}',
+                  '${e.key == 0 ? tr('First') : tr('Second')} · ${clock.offsetLabel(e.value)}',
                 ),
               ),
             )
@@ -174,10 +180,12 @@ class _EntryEditorState extends State<EntryEditor> {
                 )
                 .inMinutes;
       return duration > 0 && duration <= 1440
-          ? 'Total: ${durationLabel(duration)}'
-          : 'Choose an interval between 1 minute and 24 hours.';
+          ? tr('Total: {duration}', {'duration': context.duration(duration)})
+          : tr('Choose an interval between 1 minute and 24 hours.');
     } on FormatException catch (e) {
-      return mode == 'timed' ? e.message : 'Enter a duration in minutes.';
+      return mode == 'timed'
+          ? tr(e.message)
+          : tr('Enter a duration in minutes.');
     }
   }
 
@@ -198,8 +206,8 @@ class _EntryEditorState extends State<EntryEditor> {
         duration = int.tryParse(minutes.text) ?? 0;
       }
       if (duration < 1 || duration > 1440) {
-        throw const FormatException(
-          'Choose a duration between 1 minute and 24 hours.',
+        throw FormatException(
+          tr('Choose a duration between 1 minute and 24 hours.'),
         );
       }
       await widget.store.saveEntry({
@@ -215,7 +223,9 @@ class _EntryEditorState extends State<EntryEditor> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        setState(() => error = e is FormatException ? e.message : e.toString());
+        setState(
+          () => error = e is FormatException ? tr(e.message) : e.toString(),
+        );
       }
     } finally {
       if (mounted) setState(() => busy = false);
@@ -226,18 +236,18 @@ class _EntryEditorState extends State<EntryEditor> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete this entry?'),
-        content: const Text(
-          'This removes the entry from your calendar and reports.',
+        title: Text(tr('Delete this entry?')),
+        content: Text(
+          tr('This removes the entry from your calendar and reports.'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep entry'),
+            child: Text(tr('Keep entry')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(tr('Delete')),
           ),
         ],
       ),
@@ -259,7 +269,9 @@ class _EntryEditorState extends State<EntryEditor> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.entry == null ? 'Add time entry' : 'Edit time entry'),
+    title: Text(
+      widget.entry == null ? tr('Add time entry') : tr('Edit time entry'),
+    ),
     content: SizedBox(
       width: 440,
       child: SingleChildScrollView(
@@ -271,8 +283,8 @@ class _EntryEditorState extends State<EntryEditor> {
               DropdownButtonFormField<String>(
                 initialValue: itemId,
                 isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Project / activity',
+                decoration: InputDecoration(
+                  labelText: tr('Project / activity'),
                 ),
                 items: widget.store.items
                     .where((i) => !i.archived || i.id == itemId)
@@ -288,16 +300,16 @@ class _EntryEditorState extends State<EntryEditor> {
               const SizedBox(height: 16),
               pickerField(
                 key: const ValueKey('entry-date'),
-                label: 'Date',
+                label: tr('Date'),
                 value: MaterialLocalizations.of(context).formatCompactDate(day),
                 icon: Icons.calendar_month_outlined,
                 onTap: pickDate,
               ),
               const SizedBox(height: 18),
               SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'duration', label: Text('Duration')),
-                  ButtonSegment(value: 'timed', label: Text('Start & end')),
+                segments: [
+                  ButtonSegment(value: 'duration', label: Text(tr('Duration'))),
+                  ButtonSegment(value: 'timed', label: Text(tr('Start & end'))),
                 ],
                 selected: {mode},
                 onSelectionChanged: busy
@@ -310,9 +322,9 @@ class _EntryEditorState extends State<EntryEditor> {
                   controller: minutes,
                   onChanged: (_) => setState(() {}),
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Duration in minutes',
-                    helperText: 'No start or end time will be invented.',
+                  decoration: InputDecoration(
+                    labelText: tr('Duration in minutes'),
+                    helperText: tr('No start or end time will be invented.'),
                   ),
                 )
               else ...[
@@ -321,7 +333,7 @@ class _EntryEditorState extends State<EntryEditor> {
                     Expanded(
                       child: pickerField(
                         key: const ValueKey('entry-start'),
-                        label: 'Start',
+                        label: tr('Start'),
                         value: start.format(context),
                         icon: Icons.access_time,
                         onTap: () => pickTime(true),
@@ -331,7 +343,7 @@ class _EntryEditorState extends State<EntryEditor> {
                     Expanded(
                       child: pickerField(
                         key: const ValueKey('entry-end'),
-                        label: 'End',
+                        label: tr('End'),
                         value: end.format(context),
                         icon: Icons.access_time,
                         onTap: () => pickTime(false),
@@ -343,14 +355,15 @@ class _EntryEditorState extends State<EntryEditor> {
                 occurrencePicker(false),
                 const SizedBox(height: 10),
                 Text(
-                  'Time zone: ${clock.zone}${!clock.detected ? ' (device zone unavailable)' : ''}',
+                  tr('Time zone: {zone}', {'zone': clock.zone}) +
+                      (!clock.detected ? tr(' (device zone unavailable)') : ''),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text(
-                    'Ends the following day',
-                    style: TextStyle(fontSize: 13),
+                  title: Text(
+                    tr('Ends the following day'),
+                    style: const TextStyle(fontSize: 13),
                   ),
                   value: overnight,
                   onChanged: busy
@@ -367,13 +380,16 @@ class _EntryEditorState extends State<EntryEditor> {
                 controller: notes,
                 maxLines: 3,
                 maxLength: 2000,
-                decoration: const InputDecoration(
-                  labelText: 'Notes (optional)',
+                decoration: InputDecoration(
+                  labelText: tr('Notes (optional)'),
                   alignLabelWithHint: true,
                 ),
               ),
               if (error != null)
-                Text(error!, style: const TextStyle(color: Colors.red)),
+                Text(
+                  tr(error!),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
             ],
           ),
         ),
@@ -383,15 +399,18 @@ class _EntryEditorState extends State<EntryEditor> {
       if (widget.entry != null)
         TextButton(
           onPressed: busy ? null : delete,
-          child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          child: Text(
+            tr('Delete'),
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
         ),
       TextButton(
         onPressed: busy ? null : () => Navigator.pop(context),
-        child: const Text('Cancel'),
+        child: Text(tr('Cancel')),
       ),
       FilledButton(
         onPressed: busy ? null : save,
-        child: Text(busy ? 'Saving…' : 'Save entry'),
+        child: Text(busy ? tr('Saving…') : tr('Save entry')),
       ),
     ],
   );
@@ -405,7 +424,7 @@ class ItemEditor extends StatefulWidget {
   State<ItemEditor> createState() => _ItemEditorState();
 }
 
-class _ItemEditorState extends State<ItemEditor> {
+class _ItemEditorState extends State<ItemEditor> with LocalizedState {
   late final TextEditingController name = TextEditingController(
     text: widget.item?.name ?? '',
   );
@@ -452,8 +471,8 @@ class _ItemEditorState extends State<ItemEditor> {
   Widget build(BuildContext context) => AlertDialog(
     title: Text(
       widget.item == null
-          ? 'A new space for your work'
-          : 'Edit project / activity',
+          ? tr('A new space for your work')
+          : tr('Edit project / activity'),
     ),
     content: SizedBox(
       width: 400,
@@ -463,9 +482,9 @@ class _ItemEditorState extends State<ItemEditor> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'project', label: Text('Project')),
-                ButtonSegment(value: 'activity', label: Text('Activity')),
+              segments: [
+                ButtonSegment(value: 'project', label: Text(tr('Project'))),
+                ButtonSegment(value: 'activity', label: Text(tr('Activity'))),
               ],
               selected: {kind},
               onSelectionChanged: busy
@@ -476,26 +495,26 @@ class _ItemEditorState extends State<ItemEditor> {
             TextField(
               controller: name,
               maxLength: 120,
-              decoration: const InputDecoration(labelText: 'Name'),
+              decoration: InputDecoration(labelText: tr('Name')),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: description,
               maxLines: 2,
               maxLength: 500,
-              decoration: const InputDecoration(
-                labelText: 'Description (optional)',
+              decoration: InputDecoration(
+                labelText: tr('Description (optional)'),
               ),
             ),
             const SizedBox(height: 16),
-            const Text('Color'),
+            Text(tr('Color')),
             const SizedBox(height: 10),
             Wrap(
               spacing: 10,
               children: ['#7153E8', '#D88A40', '#398E7A', '#538BC4', '#C75A87']
                   .map(
                     (hex) => Semantics(
-                      label: 'Color $hex',
+                      label: tr('Color {hex}', {'hex': hex}),
                       selected: color == hex,
                       child: InkWell(
                         onTap: () => setState(() => color = hex),
@@ -521,7 +540,10 @@ class _ItemEditorState extends State<ItemEditor> {
             if (error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
-                child: Text(error!, style: const TextStyle(color: Colors.red)),
+                child: Text(
+                  tr(error!),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
               ),
           ],
         ),
@@ -530,11 +552,11 @@ class _ItemEditorState extends State<ItemEditor> {
     actions: [
       TextButton(
         onPressed: busy ? null : () => Navigator.pop(context),
-        child: const Text('Cancel'),
+        child: Text(tr('Cancel')),
       ),
       FilledButton(
         onPressed: busy ? null : save,
-        child: Text(busy ? 'Saving…' : 'Save'),
+        child: Text(busy ? tr('Saving…') : tr('Save')),
       ),
     ],
   );

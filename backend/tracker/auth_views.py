@@ -16,6 +16,7 @@ from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
+from django.utils.translation import gettext as _
 from django.utils import timezone
 from django.utils.crypto import constant_time_compare, salted_hmac
 from django.views.decorators.cache import never_cache
@@ -44,7 +45,7 @@ def limited(scope, identity, maximum, seconds):
 def field(data, name, maximum):
     value = data.get(name, '')
     if not isinstance(value, str) or len(value) > maximum:
-        raise ValueError(f'Invalid {name}.')
+        raise ValueError(_('Invalid %(field)s.') % {'field': name})
     return value
 
 
@@ -110,10 +111,10 @@ def begin_login(request, data):
     email = field(data, 'email', 254).strip().lower()
     password = field(data, 'password', 1024)
     if limited('login', email, 10, 300):
-        return error('Too many attempts. Wait five minutes.', 429)
+        return error(_('Too many attempts. Wait five minutes.'), 429)
     user = authenticate(request, username=email, password=password)
     if not user or not Authenticator.objects.filter(user=user, confirmed=True).exists():
-        return error('Email or password is incorrect.', 401)
+        return error(_('Email or password is incorrect.'), 401)
     challenge = AuthChallenge.objects.create(user=user, stage='mfa', email=email,
         password_hash=user.get_session_auth_hash(), expires_at=timezone.now() + timedelta(minutes=10))
     bind(request, challenge)
@@ -142,13 +143,13 @@ def verify_login(request, data):
     with transaction.atomic():
         challenge = pending(request, lock=True)
         if not challenge or challenge.stage != 'mfa':
-            return error('Sign-in expired. Enter your email and password again.', 401)
+            return error(_('Sign-in expired. Enter your email and password again.'), 401)
         if limited('mfa', challenge.email, 10, 300):
-            return error('Too many attempts. Wait five minutes.', 429)
+            return error(_('Too many attempts. Wait five minutes.'), 429)
         user = get_user_model().objects.select_for_update().get(pk=challenge.user_id)
         if not user.is_active or not constant_time_compare(challenge.password_hash, user.get_session_auth_hash()):
             discard(request)
-            return error('Sign-in expired. Enter your email and password again.', 401)
+            return error(_('Sign-in expired. Enter your email and password again.'), 401)
         challenge.attempts += 1
         challenge.save(update_fields=['attempts'])
         device = Authenticator.objects.select_for_update().filter(user=user, confirmed=True).first()
@@ -164,17 +165,14 @@ def verify_login(request, data):
                         audit.info('recovery_code_used user=%s', user.pk)
                         break
         if not verified:
-            return error('Security code is incorrect or already used. Try a new code.', 400)
+            return error(_('Security code is incorrect or already used. Try a new code.'), 400)
         challenge.delete()
         return authenticated(request, user, device)
 
 
 def send_verification(challenge, code):
-    delivered = send_mail('Your Fray verification code',
-        f'Your Fray email verification code is: {code}\n\n'
-        'Enter it in the Fray app or browser where you started creating your account. '
-        'Setup expires 10 minutes after your initial request; resending does not extend it. Never share this code.\n\n'
-        'If you did not request a Fray account, ignore this email.',
+    delivered = send_mail(_('Your Fray verification code'),
+        _('Your Fray email verification code is: %(code)s\n\nEnter it in the Fray app or browser where you started creating your account. Setup expires 10 minutes after your initial request; resending does not extend it. Never share this code.\n\nIf you did not request a Fray account, ignore this email.') % {'code': code},
         settings.DEFAULT_FROM_EMAIL, [challenge.email], fail_silently=False)
     if delivered != 1:
         raise OSError('Email delivery was not accepted')
@@ -191,14 +189,14 @@ def signup_available():
 @payload
 def begin_signup(request, data):
     if not signup_available():
-        return error('Account creation is not available yet. Please try again later.', 503)
+        return error(_('Account creation is not available yet. Please try again later.'), 503)
     email = field(data, 'email', 150).strip().lower()
     name = field(data, 'name', 150).strip()
     password = field(data, 'password', 1024)
     validate_email(email)
     validate_password(password, get_user_model()(username=email, email=email, first_name=name))
     if limited('signup-email', email, 3, 600) or limited('signup-total', 'all', settings.SIGNUP_EMAIL_LIMIT, 3600):
-        return error('Too many verification emails. Please try again later.', 429)
+        return error(_('Too many verification emails. Please try again later.'), 429)
     # Pending registrations reserve no usernames and cannot access any workspace.
     code = f'{secrets.randbelow(1000000):06d}'
     challenge = AuthChallenge(stage='email', email=email, name=name, password_hash=make_password(password),
@@ -208,7 +206,7 @@ def begin_signup(request, data):
         send_verification(challenge, code)
     except (smtplib.SMTPException, OSError):
         audit.warning('signup_email_delivery_failed')
-        return error('We could not send your verification email. Please try again later.', 503)
+        return error(_('We could not send your verification email. Please try again later.'), 503)
     challenge.save()
     bind(request, challenge)
     return JsonResponse(challenge_json(challenge), status=201)
@@ -222,16 +220,16 @@ def verify_email(request, data):
     with transaction.atomic():
         challenge = pending(request, lock=True)
         if not challenge or challenge.stage != 'email':
-            return error('Verification expired. Start creating your account again.', 401)
+            return error(_('Verification expired. Start creating your account again.'), 401)
         if limited('email-verify', challenge.email, 10, 600):
-            return error('Too many attempts. Please try again later.', 429)
+            return error(_('Too many attempts. Please try again later.'), 429)
         challenge.attempts += 1
         challenge.save(update_fields=['attempts'])
         if not constant_time_compare(email_code_hash(challenge, code), challenge.email_code_hash):
-            return error('Email code is incorrect. Check your email and try again.', 400)
+            return error(_('Email code is incorrect. Check your email and try again.'), 400)
         if get_user_model().objects.filter(username=challenge.email).exists():
             discard(request)
-            return error('An account already exists for this email. Please sign in.', 409)
+            return error(_('An account already exists for this email. Please sign in.'), 409)
         challenge.stage = 'enroll'
         challenge.email_verified_at = timezone.now()
         challenge.email_code_hash = ''
@@ -246,21 +244,21 @@ def verify_email(request, data):
 @require_POST
 def resend_email(request):
     if not signup_available():
-        return error('Email delivery is not available. Please try again later.', 503)
+        return error(_('Email delivery is not available. Please try again later.'), 503)
     with transaction.atomic():
         challenge = pending(request, lock=True)
         if not challenge or challenge.stage != 'email':
-            return error('Verification expired. Start creating your account again.', 401)
+            return error(_('Verification expired. Start creating your account again.'), 401)
         if (timezone.now() - challenge.email_sent_at).total_seconds() < 60:
-            return error('Wait a minute before requesting another email.', 429)
+            return error(_('Wait a minute before requesting another email.'), 429)
         if limited('signup-email', challenge.email, 3, 600) or limited('signup-total', 'all', settings.SIGNUP_EMAIL_LIMIT, 3600):
-            return error('Too many verification emails. Please try again later.', 429)
+            return error(_('Too many verification emails. Please try again later.'), 429)
         code = f'{secrets.randbelow(1000000):06d}'
         try:
             send_verification(challenge, code)
         except (smtplib.SMTPException, OSError):
             audit.warning('signup_email_delivery_failed')
-            return error('We could not send your verification email. Please try again later.', 503)
+            return error(_('We could not send your verification email. Please try again later.'), 503)
         challenge.email_code_hash = email_code_hash(challenge, code)
         challenge.email_sent_at = timezone.now()
         # Resending neither extends expiry nor resets the attempt budget.
@@ -273,21 +271,21 @@ def resend_email(request):
 @payload
 def finish_signup(request, data):
     if not settings.SIGNUP_ENABLED:
-        return error('Account creation is not available.', 503)
+        return error(_('Account creation is not available.'), 503)
     code = field(data, 'code', 64).strip()
     try:
         with transaction.atomic():
             challenge = pending(request, lock=True)
             if not challenge or challenge.stage != 'enroll' or not challenge.email_verified_at:
-                return error('Setup expired. Start creating your account again.', 401)
+                return error(_('Setup expired. Start creating your account again.'), 401)
             if limited('signup-totp', challenge.email, 10, 600):
-                return error('Too many attempts. Please try again later.', 429)
+                return error(_('Too many attempts. Please try again later.'), 429)
             challenge.attempts += 1
             challenge.save(update_fields=['attempts'])
             key = Fernet(settings.MFA_ENCRYPTION_KEY.encode()).decrypt(bytes(challenge.encrypted_key))
             totp = TOTP(key, step=30, digits=6)
             if not (len(code) == 6 and code.isascii() and code.isdigit() and totp.verify(int(code), tolerance=1)):
-                return error('Authenticator code is incorrect. Check the setup key and try a new code.', 400)
+                return error(_('Authenticator code is incorrect. Check the setup key and try a new code.'), 400)
             user = get_user_model().objects.create(username=challenge.email, email=challenge.email,
                 first_name=challenge.name, password=challenge.password_hash)
             device = Authenticator.objects.create(user=user, name='Authenticator', confirmed=True,
@@ -300,4 +298,4 @@ def finish_signup(request, data):
             return authenticated(request, user, device, codes)
     except IntegrityError:
         discard(request)
-        return error('An account already exists for this email. Please sign in.', 409)
+        return error(_('An account already exists for this email. Please sign in.'), 409)
