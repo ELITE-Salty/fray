@@ -4,7 +4,7 @@ This stack targets **Docker Standalone on Linux amd64/x86_64**. It is not a Swar
 
 ## Images
 
-| Image in `10.6.2.49:3000/elitesalty/` | Purpose |
+| Image pulled from `gitea.klanija.com/elitesalty/` | Purpose |
 |---|---|
 | `fray-api` | Django API and the one-shot database migration |
 | `fray-web` | Compiled Flutter web app and Nginx API proxy |
@@ -17,9 +17,13 @@ Each publication has a Git revision tag and a moving `release` tag. Prefer the r
 
 ## 1. Register your registry in Portainer
 
-In Portainer's **Registries**, add a **Custom registry** with URL `10.6.2.49:3000`. Enable authentication if your Gitea packages are private; use your Gitea username and a token with permission to read the packages. Give the target environment access to that registry. Keep these credentials in Portainer, not in the stack YAML.
+In Portainer's **Registries**, add a **Custom registry** with URL `gitea.klanija.com`. Enable authentication if your Gitea packages are private; use your Gitea username and a token with permission to read the packages. Give the target environment access to that registry. Keep these credentials in Portainer, not in the stack YAML.
 
-The registry in your example uses plain HTTP on a private address. The local build daemon already allows it. The **remote Docker daemon** must also allow it if it does not already pull your other images from this registry. An error containing `HTTP response to HTTPS client` indicates that configuration is missing. Merge `10.6.2.49:3000` into the daemon's existing `insecure-registries` list; do not replace other daemon settings. Applying daemon changes may require a Docker restart, affecting other containers, so schedule that separately. A TLS registry avoids this requirement. The server must be able to reach this private IP.
+Publishing uses the direct HTTP endpoint `10.6.2.49:3000` to avoid Cloudflare upload limits. Deployment pulls the same stored images through `gitea.klanija.com` over HTTPS, so the Portainer host does not need an insecure-registry setting or a Docker restart. Only the development machine that pushes directly needs private-network access and its existing HTTP-registry configuration.
+
+`FRAY_REGISTRY=gitea.klanija.com/elitesalty` controls the pull address in the stack. `FRAY_PUSH_REGISTRY` separately controls the publishing script and defaults to `10.6.2.49:3000/elitesalty`. No rebuilding or copying images between registries is required: both addresses serve the same Gitea registry.
+
+If you already pasted the earlier stack, set `FRAY_REGISTRY` to `gitea.klanija.com/elitesalty` in its environment variables and redeploy. Keep your existing `FRAY_IMAGE_TAG` and secrets.
 
 ## 2. Create the stack
 

@@ -24,6 +24,7 @@ if not re.fullmatch(r'[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}', args.image_tag):
     parser.error('Use a valid Docker image tag.')
 target = args.output or Path(__file__).with_name('.env')
 values = {'FRAY_DOMAIN': args.domain.lower(), 'FRAY_HTTP_PORT': args.http_port,
+          'FRAY_REGISTRY': 'gitea.klanija.com/elitesalty',
           'FRAY_METRICS_PORT': args.metrics_port, 'FRAY_IMAGE_TAG': args.image_tag,
           'FRAY_SECRET_KEY': secrets.token_hex(48),
           'FRAY_MFA_KEY': base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(),
