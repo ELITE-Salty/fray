@@ -36,7 +36,9 @@ if (process.env.FRAY_PROXY_ORIGIN) {
 function manage(args, extraEnv = {}, ignoreOutput = false) {
   const options = { env: { ...process.env, ...extraEnv }, ...(ignoreOutput ? { stdio: 'ignore' } : {}) };
   if (process.env.FRAY_DOCKER_PROJECT) {
-    return execFileSync('docker', ['compose', '-f', resolve('infra/docker/compose.yaml'), '-p', process.env.FRAY_DOCKER_PROJECT,
+    return execFileSync('docker', ['compose',
+      ...(process.env.FRAY_COMPOSE_ENV ? ['--env-file', resolve(process.env.FRAY_COMPOSE_ENV)] : []),
+      '-f', resolve('infra/docker/compose.yaml'), '-p', process.env.FRAY_DOCKER_PROJECT,
       'exec', '-T', ...Object.keys(extraEnv).flatMap(key => ['-e', key]), 'api', 'python', 'manage.py', ...args], options);
   }
   return execFileSync('.venv/bin/python', ['backend/manage.py', ...args], {
@@ -76,13 +78,17 @@ try {
     const emailField = page.getByRole('textbox', { name: 'Email', exact: true });
     await typeInto(emailField, account.email);
     await typeInto(page.getByLabel('Password', { exact: true }), account.password);
-    await typeInto(page.getByRole('textbox', { name: 'Authenticator or recovery code', exact: true }), account.recovery_codes[0]);
-    const loginRequest = page.waitForRequest(r => r.url().endsWith('/api/auth/login') && r.method() === 'POST');
+    const loginRequest = page.waitForRequest(r => r.url().endsWith('/api/auth/login/start') && r.method() === 'POST');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     const sent = (await loginRequest).postDataJSON();
-    if (sent.email !== account.email || sent.password !== account.password || sent.code !== account.recovery_codes[0]) {
-      throw new Error(`Login form mismatch: email=${sent.email === account.email}, password=${sent.password === account.password}, code=${sent.code === account.recovery_codes[0]}, code length=${sent.code?.length}, expected=${account.recovery_codes[0].length}`);
+    if (sent.email !== account.email || sent.password !== account.password || 'code' in sent) {
+      throw new Error('First login step did not send only the expected credentials');
     }
+    await page.getByText('Enter your security code', { exact: true }).waitFor();
+    const pendingStatus = await page.evaluate(async () => (await fetch('/api/auth/me')).status);
+    if (pendingStatus !== 401) throw new Error('Password-only session unexpectedly authenticated');
+    await typeInto(page.getByRole('textbox', { name: 'Authenticator or recovery code', exact: true }), account.recovery_codes[0]);
+    await page.getByRole('button', { name: 'Verify and sign in', exact: true }).click();
     await page.getByText('Your time, at a glance.', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Projects', exact: true }).click();
     await page.getByRole('button', { name: 'New project / activity', exact: true }).click();

@@ -69,6 +69,20 @@ USE_TZ = True
 TIME_ZONE = 'UTC'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 DATA_UPLOAD_MAX_MEMORY_SIZE = 65536
+SIGNUP_ENABLED = os.environ.get('FRAY_SIGNUP_ENABLED', '1') == '1'
+SIGNUP_EMAIL_LIMIT = int(os.environ.get('FRAY_SIGNUP_EMAIL_LIMIT', '100'))
+# Local development prints mail to the local console; production always uses SMTP.
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' if DEBUG else 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.environ.get('FRAY_EMAIL_HOST', 'in-v3.mailjet.com')
+EMAIL_PORT = int(os.environ.get('FRAY_EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.environ.get('FRAY_EMAIL_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('FRAY_EMAIL_PASSWORD', '')
+EMAIL_USE_TLS = os.environ.get('FRAY_EMAIL_USE_TLS', '1') == '1'
+EMAIL_USE_SSL = os.environ.get('FRAY_EMAIL_USE_SSL', '0') == '1'
+EMAIL_TIMEOUT = 10
+DEFAULT_FROM_EMAIL = os.environ.get('FRAY_EMAIL_FROM', 'Fray <noreply@localhost>' if DEBUG else '')
+if EMAIL_USE_TLS and EMAIL_USE_SSL:
+    raise RuntimeError('Enable STARTTLS or SSL for SMTP, not both.')
 LOGGING = {'version': 1, 'disable_existing_loggers': False,
     'formatters': {'plain': {'format': '{asctime} {levelname} {name} {message}', 'style': '{'}},
     'handlers': {'console': {'class': 'logging.StreamHandler', 'formatter': 'plain'}},

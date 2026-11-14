@@ -7,6 +7,7 @@ import 'time_context.dart';
 import 'data.dart';
 import 'editors.dart';
 import 'download.dart';
+import 'auth_screen.dart';
 
 const purple = Color(0xFF7153E8);
 const ink = Color(0xFF28233E);
@@ -147,135 +148,6 @@ class Brand extends StatelessWidget {
         ),
       ),
     ],
-  );
-}
-
-class LoginScreen extends StatefulWidget {
-  final FrayStore store;
-  const LoginScreen({super.key, required this.store});
-  @override
-  State<LoginScreen> createState() => _LoginScreenState();
-}
-
-class _LoginScreenState extends State<LoginScreen> {
-  final email = TextEditingController(),
-      password = TextEditingController(),
-      code = TextEditingController();
-  bool busy = false;
-  String? error;
-  @override
-  void dispose() {
-    email.dispose();
-    password.dispose();
-    code.dispose();
-    super.dispose();
-  }
-
-  Future<void> submit() async {
-    setState(() {
-      busy = true;
-      error = null;
-    });
-    try {
-      await widget.store.signIn(
-        email.text.trim(),
-        password.text,
-        code.text.trim(),
-      );
-    } catch (e) {
-      if (mounted) setState(() => error = e.toString());
-    } finally {
-      if (mounted) setState(() => busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    body: Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 440),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Center(child: Brand()),
-              const SizedBox(height: 42),
-              Text(
-                'A little clarity.\nA lot more focus.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium
-                    ?.copyWith(fontSize: 36),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Your time, projects, and everyday progress.\nAll in one quiet place.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: muted, fontSize: 16, height: 1.6),
-              ),
-              const SizedBox(height: 34),
-              TextField(
-                controller: email,
-                keyboardType: TextInputType.emailAddress,
-                autofillHints: const [AutofillHints.username],
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.mail_outline_rounded),
-                ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: password,
-                obscureText: true,
-                autofillHints: const [AutofillHints.password],
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock_outline_rounded),
-                ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: code,
-                onSubmitted: (_) {
-                  if (!busy) submit();
-                },
-                decoration: const InputDecoration(
-                  labelText: 'Authenticator or recovery code',
-                  prefixIcon: Icon(Icons.shield_outlined),
-                ),
-              ),
-              if (error != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 14),
-                  child: Text(
-                    error!,
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                ),
-              const SizedBox(height: 22),
-              FilledButton(
-                onPressed: busy ? null : submit,
-                child: Text(busy ? 'Signing in…' : 'Sign in'),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton(
-                onPressed: busy ? null : widget.store.startDemo,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.all(18),
-                ),
-                child: const Text('Explore the demo'),
-              ),
-              const SizedBox(height: 22),
-              const Text(
-                'Private by default. Protected with two-factor authentication.\nAsk your workspace operator for an account.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: muted, fontSize: 12, height: 1.7),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
   );
 }
 

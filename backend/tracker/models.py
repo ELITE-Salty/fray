@@ -44,6 +44,27 @@ class RecoveryCode(models.Model):
     digest = models.CharField(max_length=256)
 
 
+class AccountProfile(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    email_verified_at = models.DateTimeField()
+
+
+class AuthChallenge(models.Model):
+    """Short-lived, session-bound login/signup state; never an authenticated session."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.CASCADE)
+    stage = models.CharField(max_length=8, choices=[('email', 'Email'), ('enroll', 'Enroll'), ('mfa', 'MFA')])
+    email = models.EmailField(max_length=150)
+    name = models.CharField(max_length=150, blank=True)
+    password_hash = models.CharField(max_length=256)
+    encrypted_key = models.BinaryField(default=bytes)
+    email_code_hash = models.CharField(max_length=64, blank=True)
+    email_sent_at = models.DateTimeField(null=True)
+    email_verified_at = models.DateTimeField(null=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    expires_at = models.DateTimeField(db_index=True)
+
+
 class Item(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)

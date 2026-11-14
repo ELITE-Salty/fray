@@ -21,7 +21,7 @@ Nginx :8080 ---- Django/Gunicorn :8000 ---- PostgreSQL :5432
                          +---- Prometheus scrapes metrics and readiness
 ```
 
-Only Nginx is attached to the `fray-edge` network. PostgreSQL, Redis, API, and Prometheus share an internal Docker network. The origin port is published to **127.0.0.1:8090**, not all interfaces. Prometheus is on **127.0.0.1:9090**. API/DB/Redis have no host ports. Never publish the Nginx origin as public HTTP: its HTTPS forwarding header assumes a trusted tunnel.
+Only Nginx is attached to the `fray-edge` network. PostgreSQL, Redis, API, and Prometheus share an internal Docker network. The API also joins a separate `mail` bridge for outbound SMTP. The origin port is published to **127.0.0.1:8090**, not all interfaces. Prometheus is on **127.0.0.1:9090**. API/DB/Redis have no host ports. Never publish the Nginx origin as public HTTP: its HTTPS forwarding header assumes a trusted tunnel.
 
 Prometheus also has its own bridge network so Docker can publish its loopback port; containers attached only to an internal network do not receive published ports on the tested Docker Engine. It does not join the tunnel's edge network.
 
@@ -114,6 +114,8 @@ Open **https://frayapi.klanija.com** in a browser. Confirm the certificate is va
 
 ## 3. Create your account
 
+For public signup, configure Mailjet SMTP as described in [the signup instructions](PORTAINER.md#4-enable-self-service-signup-with-mailjet), using the same variables in this deployment's `.env`, then recreate the API service. Users verify email and enroll an authenticator in the app. The operator command below remains an alternative for administratively provisioned accounts.
+
 On the server, from `infra/docker`:
 
 ```sh
@@ -128,7 +130,7 @@ Optional sample data:
 docker compose exec api python manage.py seed_demo you@example.com
 ```
 
-Public signup, email verification, self-service password reset, and MFA rotation are still planned. The current release supports operator-created accounts with mandatory MFA.
+Self-service signup verifies email before creating an account, then requires authenticator confirmation. Password reset and MFA rotation are still planned. Operator-created accounts do not claim verified email ownership. The updated client separates password sign-in from the security-code step; the original combined endpoint remains compatible with older APKs.
 
 ## 4. Run the Android app
 
@@ -198,6 +200,7 @@ Alert rules cover a missing API target, database/cache readiness, error ratio, a
 
 ```sh
 docker compose exec -T api python manage.py clearsessions
+docker compose exec -T api python manage.py clear_auth_challenges
 ```
 
 ## Backups and restore drills

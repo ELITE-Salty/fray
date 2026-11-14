@@ -1,6 +1,6 @@
 # Validation record — 14 November 2026
 
-This records local application and Docker deployment checks. It is not evidence of deployment on the remote server, public Cloudflare TLS, VM provisioning, or a production security audit.
+This records local application and Docker deployment checks. A separate public check confirmed the original hosted API's HTTPS health endpoint returned 200 after the user's tunnel setup. Local checks of the newer authentication release do not establish its remote deployment or actual Mailjet delivery. This is not evidence of VM provisioning or a production security audit.
 
 ## Environment
 
@@ -15,11 +15,11 @@ This records local application and Docker deployment checks. It is not evidence 
 
 | Check | Result |
 |---|---|
-| Django tests | 16 passed with SQLite; all 16 also passed with PostgreSQL/Redis |
+| Django tests | 28 passed with SQLite, 1 PostgreSQL-only race check skipped; all 29 passed with PostgreSQL/Redis |
 | Django migration drift | No changes detected |
 | Python syntax compilation | Passed |
 | Flutter static analysis | No issues found |
-| Flutter unit/widget tests | 15 passed |
+| Flutter unit/widget tests | 18 passed |
 | Flutter release web build | Passed, renderer and Roboto fonts bundled locally |
 | Android development APK | Built successfully with the hosted API URL |
 | Android device smoke test | Passed: native timezone detection, secure-storage write/read/delete, date and time dialogs |
@@ -29,13 +29,17 @@ This records local application and Docker deployment checks. It is not evidence 
 | Monitoring | Loopback Prometheus endpoint reachable; database/cache readiness metrics both 1 |
 | Production settings | Health returned 200 through Nginx; secure headers present; Django deployment check has only the two documented HSTS policy warnings |
 | Browser demo | Desktop/mobile navigation and CSV download passed |
-| Browser real account | MFA recovery-code login, project creation, entry save, persistence after reload, and logout passed; temporary account removed |
+| Browser real account | Separate password and MFA screens, denial of workspace access before MFA, project creation, entry save, reload, and logout passed; temporary account removed |
 | Screenshots | Captured from actual Flutter web UI with synthetic demo data |
 | Backup restore | Dump restored into a separate temporary database with 1 fixture account and 12 entries; temporary database and source fixture account removed |
 | Portainer stack YAML | Validated with Docker Compose and fresh isolated volumes; bundled PostgreSQL initialization and Prometheus configuration passed; no host bind mounts needed |
 | Split Android APKs | ARM64, ARMv7 and x86_64 development APKs built successfully |
+| Mailjet network | SMTP connection with STARTTLS from the local API container passed; no credentials or real email used |
+| Mobile browser signup | Email code from local console mail, MFA enrollment resumed after reload, TOTP confirmation, recovery-code acknowledgement, logout and two-step login passed; synthetic account removed |
 
 Backend coverage includes mandatory MFA, encrypted seeds, TOTP replay, recovery-code consumption, throttling, CSRF, cross-user isolation, invalid durations, overnight intervals, DST elapsed time, overlaps, archived reports, CSV formula escaping, database constraints, and health failures.
+
+Authentication coverage adds email-before-MFA enrollment, no account before both proofs, hashed pending passwords/codes, session binding, expiry, password-change/disabled-user invalidation, bounded attempts, resend cooldown/rotation, unavailable SMTP, disabled signup, duplicate-account races, and concurrent single consumption of a login challenge and recovery code on PostgreSQL. Real-account browser checks use production cookie/CSRF settings through the simulated HTTPS origin.
 
 Flutter tests cover navigation at 390px and 1440px, duration-only entries, Slovenian date selection, 12/24-hour settings, preserving a saved entry's timezone when travelling, missing/repeated DST times, and cookie persistence, expiry, origin isolation and logout. The device smoke test additionally checks the actual Android plugins; it does not sign in to the remote API.
 
@@ -53,12 +57,15 @@ The final build restores the normal app APK after the integration-test target.
 
 The Portainer stack was exercised using Compose on the local Docker engine, including API readiness, restricted database-role privileges, configuration checks, and monitoring scrape results. This does not claim an actual deployment through the user's remote Portainer UI.
 
+`scripts/signup-browser-check.mjs` runs only against a loopback development launcher. Set `FRAY_MAIL_LOG` to the file capturing its console output, `FRAY_BROWSER_URL` to that launcher's URL, and `FRAY_PLAYWRIGHT_PATH` as above. It reads only the synthetic signup message, never sends real email, and removes its fixture account afterward. The [signup screenshot](screenshots/signup-mobile.png) shows the blank form, without credentials. The production-configured browser run used project `fray-auth-validation` and `FRAY_COMPOSE_ENV=.artifacts/docker-validation.env`.
+
 ## Not tested / not implemented yet
 
-- Vagrant, cloud-init, fresh Ubuntu installation, deployment speed, public DNS/TLS, or service reboot behavior.
-- Concurrent-request stress testing under PostgreSQL row locking; sequential integration tests do not prove all race conditions.
+- Vagrant, cloud-init, fresh Ubuntu installation, deployment speed, or service reboot behavior.
+- Broad concurrent-request stress testing under PostgreSQL row locking; the targeted login race check does not prove all race conditions.
 - Physical Android devices, real mobile login through Cloudflare, iOS simulator/device, release signing, or store publishing.
 - Load testing, exhaustive accessibility review, full disaster recovery on a second host, Grafana dashboards, or alert notification delivery.
-- Collaboration, self-service onboarding/recovery, XLSX/PDF export, or account deletion.
+- Actual Mailjet credential/sender acceptance and inbox delivery after remote SMTP setup.
+- Collaboration, self-service password reset/MFA rotation, XLSX/PDF export, or account deletion.
 
 Repeat the commands in the repository README after changes. Keep future deployment evidence separate from these local application screenshots.

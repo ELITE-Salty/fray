@@ -35,7 +35,11 @@ Archives remain in historical reports. Archiving blocks new entries and edits to
 
 ## Authentication
 
-`create_fray_user` is the current enrollment path. The operator supplies a password and delivers the generated authenticator seed and recovery codes privately. A successful first login proves possession of the seed or a recovery code. Email ownership is not verified yet. Public signup, self-service MFA rotation, password reset, and account deletion are not implemented.
+Self-service signup uses a short-lived `AuthChallenge` bound to the anonymous Django session. The initial email/password step stores an Argon2 password hash and sends a six-digit email code through SMTP (Mailjet by default). The email code is stored as a keyed HMAC. Verification unlocks an encrypted TOTP seed, displayed as a locally rendered QR code or manual key. Only confirmation of a valid authenticator code creates the user, verified-email profile, confirmed device, and eight hashed single-use recovery codes, all in one transaction. Pending registrations reserve no usernames and grant no data access. Duplicate account races cannot overwrite an existing user.
+
+Returning users receive an anonymous ten-minute challenge after correct email/password, then submit their authenticator or recovery code. A full Django/OTP session is created only after the second step succeeds. The challenge retains a password-auth hash so a password change or account disablement invalidates it. Challenges are locked and consumed transactionally to prevent reuse; each allows five code attempts. Shared cache limits also apply across challenge restarts. Sensitive responses are never cached. Cancel/logout remove pending challenges; `clear_auth_challenges` prunes expired records, including abandoned registration data.
+
+`create_fray_user` remains an administrative enrollment path and does not claim verified email ownership. Existing accounts continue to work. The combined login endpoint is retained for old APK compatibility. Self-service MFA rotation, password reset, and account deletion are not implemented.
 
 Login requires both a valid password and a TOTP/recovery code. Django hashes passwords with Argon2. Accounts receive a 10-attempt/5-minute cache limit, plus django-otp device throttling. Production uses shared Redis; the development cache is in-process and resets on restart. Cloudflare per-client limits should supplement this account limit for the tunnel deployment to address distributed/account-targeted abuse.
 
@@ -51,6 +55,14 @@ Paths have no trailing slash. Writes use JSON and `X-CSRFToken`. Responses are J
 |---|---|---|
 | GET | `/api/auth/csrf` | Set CSRF cookie; return `csrfToken` |
 | POST | `/api/auth/login` | `{email,password,code}`; return name/email and rotated CSRF token |
+| POST | `/api/auth/login/start` | Verify email/password; create session-bound MFA challenge |
+| POST | `/api/auth/login/verify` | Verify `{code}` and consume challenge; create full session |
+| GET | `/api/auth/challenge` | Resume current email/MFA/enrollment step; no workspace access |
+| POST | `/api/auth/cancel` | Cancel pending challenge |
+| POST | `/api/auth/signup` | `{name,email,password}`; send verification email |
+| POST | `/api/auth/signup/email` | Verify emailed `{code}`; return authenticator setup key/URI |
+| POST | `/api/auth/signup/resend` | Resend after cooldown without resetting expiry/attempt budget |
+| POST | `/api/auth/signup/finish` | Verify authenticator `{code}`; create account/session and return recovery codes once |
 | POST | `/api/auth/logout` | Destroy current session |
 | GET | `/api/auth/me` | Current MFA-verified identity |
 | GET / POST | `/api/items` | Own items / create item |

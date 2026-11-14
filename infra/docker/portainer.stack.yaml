@@ -15,6 +15,15 @@ x-api: &api
     FRAY_DB_USER: fray
     FRAY_DB_PASSWORD: ${FRAY_DB_PASSWORD:?Run python3 configure.py first}
     FRAY_REDIS_URL: redis://:${FRAY_REDIS_PASSWORD:?Run python3 configure.py first}@redis:6379/0
+    FRAY_SIGNUP_ENABLED: ${FRAY_SIGNUP_ENABLED:-1}
+    FRAY_SIGNUP_EMAIL_LIMIT: ${FRAY_SIGNUP_EMAIL_LIMIT:-100}
+    FRAY_EMAIL_HOST: ${FRAY_EMAIL_HOST:-in-v3.mailjet.com}
+    FRAY_EMAIL_PORT: ${FRAY_EMAIL_PORT:-587}
+    FRAY_EMAIL_USER: ${FRAY_EMAIL_USER:-}
+    FRAY_EMAIL_PASSWORD: ${FRAY_EMAIL_PASSWORD:-}
+    FRAY_EMAIL_FROM: ${FRAY_EMAIL_FROM:-}
+    FRAY_EMAIL_USE_TLS: ${FRAY_EMAIL_USE_TLS:-1}
+    FRAY_EMAIL_USE_SSL: ${FRAY_EMAIL_USE_SSL:-0}
   networks: [backend]
   read_only: true
   tmpfs: ['/tmp:size=64m,mode=1777']
@@ -71,6 +80,7 @@ services:
 
   api:
     <<: *api
+    networks: [backend, mail]
     restart: unless-stopped
     depends_on:
       migrate: {condition: service_completed_successfully}
@@ -125,5 +135,6 @@ networks:
   backend:
     internal: true
   monitoring:
+  mail:
   edge:
     name: ${FRAY_EDGE_NETWORK:-fray-edge}

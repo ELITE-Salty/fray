@@ -43,6 +43,8 @@ flutter run -d chrome --dart-define=FRAY_DEMO=true
 
 ### Use a real local account
 
+You can now select **Create an account** in the app. The local development launcher prints the verification email to its terminal instead of sending it. Enter that code, set up your authenticator using the QR code or manual key, and save the recovery codes. Production signup requires [Mailjet SMTP configuration](infra/docker/PORTAINER.md#4-enable-self-service-signup-with-mailjet). Login asks for email/password first, then the security code.
+
 The launcher creates the local schema. Alternatively run migrations first:
 
 ```sh
@@ -66,6 +68,7 @@ Real account data persists in `backend/db.sqlite3`. In development only, MFA enc
 - Timed entries, overnight intervals, duration-only entries, private notes, editing, and deletion.
 - Monthly personal totals and CSV download on web; native CSV export copies text to the clipboard.
 - Password + TOTP authentication, encrypted MFA seeds, replay prevention, hashed single-use recovery codes, login throttling, CSRF protection, and server-side sessions.
+- Self-service signup with email verification, authenticator enrollment, and recovery-code handoff; separate password and MFA sign-in screens.
 - Owner-scoped queries and reports. Knowing someone else's UUID does not grant access.
 - Database constraints and migrations; an idempotent sample-data command.
 - Health endpoint, Prometheus-format request/latency metrics, and audit logs without passwords, OTP codes, or notes.
@@ -124,7 +127,7 @@ Set `FRAY_BROWSER_URL` for a different port and `PLAYWRIGHT_CHROMIUM_EXECUTABLE`
 
 ## Next milestones
 
-1. User-facing signup, email verification, password reset, MFA enrollment/rotation, and reauthentication. Current onboarding is an operator CLI.
+1. Self-service password reset, MFA rotation, and reauthentication. Signup, email verification, and initial MFA enrollment are implemented; production email delivery needs configured Mailjet credentials.
 2. Week/day time-grid views, pagination for large histories, broader mobile device validation, and release signing. Android now defaults to `https://frayapi.klanija.com`; native sessions persist in secure storage until server expiry. The public route must be configured on your server before real login works.
 3. Collaboration: memberships, expiring invitations, aggregate reports, and explicit sharing permissions. Current projects are personal; the schema will be extended with memberships before any shared access is enabled.
 4. XLSX and summary/detailed PDF exports, account export/deletion, accessibility/device review, and store-ready icons/signing. Generated platform launcher icons are still placeholders.

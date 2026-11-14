@@ -83,7 +83,45 @@ curl -fsS https://frayapi.klanija.com/api/health
 
 Expected JSON: `{"status":"ok"}` (spacing may differ). Open the hostname in a browser and verify its certificate. The root URL serves the web app; native clients use the same origin's API routes.
 
-## 4. Create your real account
+## 4. Enable self-service signup with Mailjet
+
+Users can choose **Create an account** in the web app or updated Android app. Signup asks for name/email/password, verifies a six-digit email code, then requires authenticator enrollment using a QR code or a copyable setup key. Eight recovery codes are shown once before opening the workspace. Returning users enter email/password first and their authenticator/recovery code on the next screen.
+
+In Mailjet, verify a sender address or domain and configure its SPF/DKIM records using the values Mailjet provides. In **Account settings → SMTP and SEND API settings**, obtain the API key and secret key. The SMTP username is the API key, and the SMTP password is the secret key (not your Mailjet website password).
+
+Add these environment variables to the **Fray stack** in Portainer:
+
+```dotenv
+FRAY_SIGNUP_ENABLED=1
+FRAY_EMAIL_HOST=in-v3.mailjet.com
+FRAY_EMAIL_PORT=587
+FRAY_EMAIL_USE_TLS=1
+FRAY_EMAIL_USE_SSL=0
+FRAY_EMAIL_USER=YOUR_MAILJET_API_KEY
+FRAY_EMAIL_PASSWORD=YOUR_MAILJET_SECRET_KEY
+FRAY_EMAIL_FROM=Fray <YOUR_VERIFIED_SENDER_ADDRESS>
+```
+
+Replace the three uppercase placeholders. Keep these credentials only in Portainer/private backups. SMTP parameters can be changed later without application changes. Signup returns a friendly unavailable message until the production SMTP credentials and sending address are configured; there is no verification bypass.
+
+When upgrading from the original stack, **replace the stack YAML with the updated `portainer.stack.yaml` as well as changing `FRAY_IMAGE_TAG`**. It adds SMTP environment forwarding and the API's `mail` bridge network for outbound SMTP; simply adding Portainer variables to the old YAML will not pass them into the container. Preserve your existing database/MFA/signing secrets, custom ports (including 8130 if you chose it), stack name, volumes, and network settings. Do not regenerate the environment file. Wait for migration `0002` to complete successfully before testing signup.
+
+The API connects to Mailjet using STARTTLS. Other database/cache services remain on the internal network. Ensure the Docker host permits outbound port 587. Email delivery has a ten-second connection timeout; failures leave no usable account. Check `api` logs for `signup_email_delivery_failed` and Mailjet's delivery events if messages do not arrive. Logs do not include verification codes or SMTP credentials in production.
+
+Email requests have a per-address limit of three in ten minutes and a global default of 100 per hour (`FRAY_SIGNUP_EMAIL_LIMIT`). The global limit protects the Mailjet quota; tune it for your expected traffic. Resends require a one-minute wait. Email and MFA challenges expire after ten minutes per stage and allow at most five code attempts; resending does not reset those limits. Rate limits use Redis across workers. Additional per-client abuse controls can be applied at Cloudflare.
+
+Use **Create an account** with an inbox you control to verify real Mailjet delivery after deployment. Local tests use an in-memory mail backend or a development console; they do not prove real Mailjet delivery. Changing the stored password invalidates pending sign-in challenges. Password reset and self-service MFA rotation remain future work.
+
+Run these daily from a host scheduler (with this stack's Compose file and environment) to remove expired sessions and short-lived signup data:
+
+```sh
+docker compose exec -T api python manage.py clearsessions
+docker compose exec -T api python manage.py clear_auth_challenges
+```
+
+Mailjet references: [SMTP credentials](https://documentation.mailjet.com/hc/en-us/articles/360043229473-How-can-I-configure-my-SMTP-parameters), [server and sender setup](https://documentation.mailjet.com/hc/en-us/articles/37251169295003--Quick-Start-with-Mailjet).
+
+### Optional operator-created accounts
 
 In Portainer, open the running **api** container, select **Console**, connect using `/bin/sh`, then run:
 
@@ -91,7 +129,7 @@ In Portainer, open the running **api** container, select **Console**, connect us
 python manage.py create_fray_user you@example.com --name YourName
 ```
 
-The command asks for a password and displays the authenticator secret and recovery codes. Add the secret to your authenticator as a six-digit, 30-second TOTP account. Save recovery codes privately. There is no default password or public signup yet.
+The command asks for a password and displays the authenticator secret and recovery codes. Add the secret to your authenticator as a six-digit, 30-second TOTP account. Save recovery codes privately. This administrative path does not verify email ownership; it remains available for existing/private accounts. There is no default password. Existing accounts and the original APK remain compatible with the API; install the updated APK to get self-service signup and the separate security-code screen.
 
 Optional demo records for this real account:
 

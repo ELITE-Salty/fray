@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fray/src/app.dart';
 import 'package:fray/src/data.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 void main() {
   for (final width in [390.0, 1440.0]) {
@@ -69,10 +71,22 @@ void main() {
   });
 
   testWidgets('Sign in offers an explicitly labeled demo', (tester) async {
-    final store = FrayStore();
+    final store = FrayStore(
+      client: MockClient(
+        (request) async => http.Response(
+          request.url.path.endsWith('/csrf')
+              ? '{"csrfToken":"test"}'
+              : '{"stage":"credentials"}',
+          200,
+          headers: {'content-type': 'application/json'},
+        ),
+      ),
+    );
     addTearDown(store.dispose);
     await tester.pumpWidget(FrayApp(store: store));
-    expect(find.text('Authenticator or recovery code'), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.text('Authenticator or recovery code'), findsNothing);
+    expect(find.text('Create an account'), findsOneWidget);
     await tester.ensureVisible(find.text('Explore the demo'));
     await tester.tap(find.text('Explore the demo'));
     await tester.pumpAndSettle();

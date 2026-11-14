@@ -21,7 +21,7 @@ from django.views.decorators.http import require_GET, require_http_methods
 from django_otp import login as otp_login
 from prometheus_client import CONTENT_TYPE_LATEST, Gauge, generate_latest
 
-from .models import Authenticator, Item, RecoveryCode, TimeEntry
+from .models import AuthChallenge, Authenticator, Item, RecoveryCode, TimeEntry
 
 audit = logging.getLogger('fray.audit')
 DEPENDENCIES = Gauge('fray_dependency_ready', 'Database/cache readiness', ['dependency'])
@@ -113,6 +113,8 @@ def sign_in(request, data):
 
 @require_http_methods(['POST'])
 def sign_out(request):
+    if request.session.get('fray_auth_challenge'):
+        AuthChallenge.objects.filter(pk=request.session['fray_auth_challenge']).delete()
     logout(request)
     return JsonResponse({'ok': True})
 

@@ -80,9 +80,12 @@ class ApiException implements Exception {
 
 class FrayStore extends ChangeNotifier {
   TimeContext clock;
-  FrayStore({TimeContext? clock}) : clock = clock ?? TimeContext.device;
-  final http.Client _client = createClient();
+  FrayStore({TimeContext? clock, http.Client? client})
+    : clock = clock ?? TimeContext.device,
+      _client = client ?? createClient();
+  final http.Client _client;
   String _csrf = '';
+  Future<void>? _authPreparation;
   bool demo = false;
   String? name, email;
   List<WorkItem> items = [];
@@ -127,8 +130,7 @@ class FrayStore extends ChangeNotifier {
 
   Future<void> restore() async {
     try {
-      final csrf = await _request('GET', '/api/auth/csrf');
-      _csrf = csrf['csrfToken'];
+      await prepareAuth();
       final user = await _request('GET', '/api/auth/me');
       name = user['name'];
       email = user['email'];
@@ -149,6 +151,86 @@ class FrayStore extends ChangeNotifier {
     _csrf = result['csrfToken'];
     name = result['name'];
     this.email = result['email'];
+    demo = false;
+    notifyListeners();
+  }
+
+  Future<void> prepareAuth() => _authPreparation ??= () async {
+    try {
+      final result = await _request('GET', '/api/auth/csrf');
+      _csrf = result['csrfToken'];
+    } catch (_) {
+      _authPreparation = null;
+      rethrow;
+    }
+  }();
+
+  Future<Map<String, dynamic>> authStatus() async {
+    await prepareAuth();
+    return Map<String, dynamic>.from(
+      await _request('GET', '/api/auth/challenge'),
+    );
+  }
+
+  Future<Map<String, dynamic>> beginSignIn(
+    String email,
+    String password,
+  ) async {
+    await prepareAuth();
+    return Map<String, dynamic>.from(
+      await _request('POST', '/api/auth/login/start', {
+        'email': email,
+        'password': password,
+      }),
+    );
+  }
+
+  Future<Map<String, dynamic>> beginSignUp(
+    String name,
+    String email,
+    String password,
+  ) async {
+    await prepareAuth();
+    return Map<String, dynamic>.from(
+      await _request('POST', '/api/auth/signup', {
+        'name': name,
+        'email': email,
+        'password': password,
+      }),
+    );
+  }
+
+  Future<Map<String, dynamic>> verifyEmail(String code) async =>
+      Map<String, dynamic>.from(
+        await _request('POST', '/api/auth/signup/email', {'code': code}),
+      );
+
+  Future<void> resendEmail() async {
+    await _request('POST', '/api/auth/signup/resend');
+  }
+
+  Future<void> cancelAuth() async {
+    await _request('POST', '/api/auth/cancel');
+  }
+
+  Future<Map<String, dynamic>> verifySecurityCode(
+    String code, {
+    required bool enrolling,
+  }) async {
+    final result = Map<String, dynamic>.from(
+      await _request(
+        'POST',
+        enrolling ? '/api/auth/signup/finish' : '/api/auth/login/verify',
+        {'code': code},
+      ),
+    );
+    _csrf = result['csrfToken'];
+    return result;
+  }
+
+  void completeAuth(Map<String, dynamic> result) {
+    name = result['name'];
+    email = result['email'];
     demo = false;
     notifyListeners();
   }
