@@ -148,3 +148,80 @@ msgstr[0] "Geslo je prekratko. Vsebovati mora vsaj %d znak."
 msgstr[1] "Geslo je prekratko. Vsebovati mora vsaj %d znaka."
 msgstr[2] "Geslo je prekratko. Vsebovati mora vsaj %d znake."
 msgstr[3] "Geslo je prekratko. Vsebovati mora vsaj %d znakov."
+
+msgid "Weekly goals must be between 0 and 10080 minutes."
+msgstr "Tedenski cilj mora biti med 0 in 10080 minutami."
+
+msgid "Choose a date range of at most 93 days."
+msgstr "Izberite obdobje največ 93 dni."
+
+msgid "This offline operation has different content. Review it before retrying."
+msgstr "To dejanje brez povezave ima drugačno vsebino. Pred ponovnim poskusom ga preglejte."
+
+msgid "This entry was already deleted on the server."
+msgstr "Ta vnos je bil na strežniku že izbrisan."
+
+msgid "This entry changed on another device. Reload it before saving."
+msgstr "Ta vnos se je spremenil v drugi napravi. Pred shranjevanjem ga znova naložite."
+
+msgid "Shared projects cannot become personal activities."
+msgstr "Skupni projekti ne morejo postati osebne dejavnosti."
+
+msgid "Give the template a name and a duration from 1 to 1440 minutes."
+msgstr "Predlogi določite ime in trajanje od 1 do 1440 minut."
+
+msgid "You no longer have access to this shared project."
+msgstr "Nimate več dostopa do tega skupnega projekta."
+
+msgid "Transfer ownership before leaving this project."
+msgstr "Pred odhodom iz projekta prenesite lastništvo."
+
+msgid "Only the project owner can manage members."
+msgstr "Člane lahko upravlja le lastnik projekta."
+
+msgid "This person already belongs to the project."
+msgstr "Ta oseba je že član projekta."
+
+msgid "Too many invitations. Please try again later."
+msgstr "Preveč povabil. Poskusite pozneje."
+
+msgid "Invitation to a Fray project"
+msgstr "Povabilo v projekt Fray"
+
+#, python-format
+msgid "You have been invited to %(project)s. Sign in to Fray with this email address and open Projects → Invitations. Your individual entries and notes stay private. This invitation expires in seven days."
+msgstr "Povabljeni ste v projekt %(project)s. S tem e-poštnim naslovom se prijavite v Fray in odprite Projekti → Povabila. Vaši posamezni vnosi in opombe ostanejo zasebni. Povabilo poteče čez sedem dni."
+
+msgid "This project is no longer available."
+msgstr "Ta projekt ni več na voljo."
+
+msgid "If this account exists, a reset code has been sent. Check your spam folder too."
+msgstr "Če račun obstaja, je bila poslana koda za ponastavitev. Preverite tudi neželeno pošto."
+
+msgid "Reset your Fray password"
+msgstr "Ponastavite geslo za Fray"
+
+#, python-format
+msgid "Your password reset code is: %(code)s\n\nIt expires in 10 minutes. Your authenticator or a recovery code is also required. If you did not request this, ignore this email."
+msgstr "Vaša koda za ponastavitev gesla je: %(code)s\n\nPoteče čez 10 minut. Potrebujete tudi kodo iz aplikacije za preverjanje pristnosti ali obnovitveno kodo. Če tega niste zahtevali, prezrite to e-pošto."
+
+msgid "Password reset expired. Request a new code."
+msgstr "Ponastavitev gesla je potekla. Zahtevajte novo kodo."
+
+msgid "The reset code or security code is incorrect."
+msgstr "Koda za ponastavitev ali varnostna koda je napačna."
+
+msgid "Type DELETE to confirm account deletion."
+msgstr "Za potrditev izbrisa računa vnesite DELETE."
+
+msgid "Transfer ownership of shared projects before deleting your account."
+msgstr "Pred brisanjem računa prenesite lastništvo skupnih projektov."
+
+msgid "Password or security code is incorrect."
+msgstr "Geslo ali varnostna koda je napačna."
+
+msgid "Authenticator setup expired. Start again."
+msgstr "Nastavitev aplikacije za preverjanje pristnosti je potekla. Začnite znova."
+
+msgid "Verify your email through password reset before accepting invitations."
+msgstr "Pred sprejemanjem povabil potrdite e-poštni naslov s ponastavitvijo gesla."

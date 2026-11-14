@@ -147,3 +147,80 @@ msgid_plural "This password is too short. It must contain at least %d characters
 msgstr[0] "Lozinka je prekratka. Mora sadržavati najmanje %d znak."
 msgstr[1] "Lozinka je prekratka. Mora sadržavati najmanje %d znaka."
 msgstr[2] "Lozinka je prekratka. Mora sadržavati najmanje %d znakova."
+
+msgid "Weekly goals must be between 0 and 10080 minutes."
+msgstr "Tjedni cilj mora biti između 0 i 10080 minuta."
+
+msgid "Choose a date range of at most 93 days."
+msgstr "Odaberite razdoblje od najviše 93 dana."
+
+msgid "This offline operation has different content. Review it before retrying."
+msgstr "Ova izvanmrežna radnja ima drukčiji sadržaj. Pregledajte je prije ponovnog pokušaja."
+
+msgid "This entry was already deleted on the server."
+msgstr "Ovaj unos već je izbrisan na poslužitelju."
+
+msgid "This entry changed on another device. Reload it before saving."
+msgstr "Ovaj unos promijenjen je na drugom uređaju. Ponovno ga učitajte prije spremanja."
+
+msgid "Shared projects cannot become personal activities."
+msgstr "Zajednički projekti ne mogu postati osobne aktivnosti."
+
+msgid "Give the template a name and a duration from 1 to 1440 minutes."
+msgstr "Predlošku odredite naziv i trajanje od 1 do 1440 minuta."
+
+msgid "You no longer have access to this shared project."
+msgstr "Više nemate pristup ovom zajedničkom projektu."
+
+msgid "Transfer ownership before leaving this project."
+msgstr "Prije napuštanja projekta prenesite vlasništvo."
+
+msgid "Only the project owner can manage members."
+msgstr "Članovima može upravljati samo vlasnik projekta."
+
+msgid "This person already belongs to the project."
+msgstr "Ova osoba već je član projekta."
+
+msgid "Too many invitations. Please try again later."
+msgstr "Previše pozivnica. Pokušajte kasnije."
+
+msgid "Invitation to a Fray project"
+msgstr "Pozivnica za projekt Fray"
+
+#, python-format
+msgid "You have been invited to %(project)s. Sign in to Fray with this email address and open Projects → Invitations. Your individual entries and notes stay private. This invitation expires in seven days."
+msgstr "Pozvani ste u projekt %(project)s. Prijavite se u Fray ovom adresom e-pošte i otvorite Projekti → Pozivnice. Vaši pojedinačni unosi i bilješke ostaju privatni. Pozivnica istječe za sedam dana."
+
+msgid "This project is no longer available."
+msgstr "Ovaj projekt više nije dostupan."
+
+msgid "If this account exists, a reset code has been sent. Check your spam folder too."
+msgstr "Ako račun postoji, poslan je kod za ponovno postavljanje. Provjerite i neželjenu poštu."
+
+msgid "Reset your Fray password"
+msgstr "Ponovno postavite lozinku za Fray"
+
+#, python-format
+msgid "Your password reset code is: %(code)s\n\nIt expires in 10 minutes. Your authenticator or a recovery code is also required. If you did not request this, ignore this email."
+msgstr "Vaš kod za ponovno postavljanje lozinke je: %(code)s\n\nIstječe za 10 minuta. Potreban je i kod iz aplikacije za autentifikaciju ili kod za oporavak. Ako ovo niste zatražili, zanemarite ovu poruku."
+
+msgid "Password reset expired. Request a new code."
+msgstr "Ponovno postavljanje lozinke je isteklo. Zatražite novi kod."
+
+msgid "The reset code or security code is incorrect."
+msgstr "Kod za ponovno postavljanje ili sigurnosni kod nije točan."
+
+msgid "Type DELETE to confirm account deletion."
+msgstr "Za potvrdu brisanja računa upišite DELETE."
+
+msgid "Transfer ownership of shared projects before deleting your account."
+msgstr "Prije brisanja računa prenesite vlasništvo zajedničkih projekata."
+
+msgid "Password or security code is incorrect."
+msgstr "Lozinka ili sigurnosni kod nije točan."
+
+msgid "Authenticator setup expired. Start again."
+msgstr "Postavljanje aplikacije za autentifikaciju je isteklo. Počnite ponovno."
+
+msgid "Verify your email through password reset before accepting invitations."
+msgstr "Prije prihvaćanja pozivnica potvrdite adresu e-pošte ponovnim postavljanjem lozinke."

@@ -46,14 +46,15 @@ class RecoveryCode(models.Model):
 
 class AccountProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    email_verified_at = models.DateTimeField()
+    email_verified_at = models.DateTimeField(null=True)
+    weekly_goal_minutes = models.PositiveIntegerField(default=0)
 
 
 class AuthChallenge(models.Model):
     """Short-lived, session-bound login/signup state; never an authenticated session."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.CASCADE)
-    stage = models.CharField(max_length=8, choices=[('email', 'Email'), ('enroll', 'Enroll'), ('mfa', 'MFA')])
+    stage = models.CharField(max_length=8, choices=[('email', 'Email'), ('enroll', 'Enroll'), ('mfa', 'MFA'), ('reset', 'Reset'), ('rotate', 'Rotate')])
     email = models.EmailField(max_length=150)
     name = models.CharField(max_length=150, blank=True)
     password_hash = models.CharField(max_length=256)
@@ -95,6 +96,7 @@ class TimeEntry(models.Model):
     notes = models.CharField(max_length=2000, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    revision = models.PositiveIntegerField(default=1)
 
     class Meta:
         ordering = ['-local_date', 'started_at', 'id']
@@ -105,3 +107,42 @@ class TimeEntry(models.Model):
                 models.Q(mode='duration', started_at__isnull=True, ended_at__isnull=True) |
                 models.Q(mode='timed', started_at__isnull=False, ended_at__isnull=False, ended_at__gt=models.F('started_at'))
             ), name='entry_mode_timestamps')]
+
+
+class EntryReceipt(models.Model):
+    """Retained after entry deletion so delayed offline retries cannot recreate it."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    operation = models.UUIDField()
+    entry = models.ForeignKey(TimeEntry, null=True, on_delete=models.SET_NULL)
+    fingerprint = models.CharField(max_length=64)
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['user', 'operation'], name='entry_operation_once')]
+
+
+class EntryTemplate(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    item = models.ForeignKey(Item, on_delete=models.CASCADE)
+    name = models.CharField(max_length=120)
+    minutes = models.PositiveIntegerField(default=60)
+    notes = models.CharField(max_length=2000, blank=True)
+    class Meta:
+        constraints = [models.CheckConstraint(condition=models.Q(minutes__gte=1, minutes__lte=1440), name='template_duration')]
+
+
+class ProjectMember(models.Model):
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='memberships')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    joined_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['item', 'user'], name='project_member_once')]
+
+
+class ProjectInvitation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    item = models.ForeignKey(Item, on_delete=models.CASCADE)
+    email = models.EmailField(max_length=150)
+    expires_at = models.DateTimeField(db_index=True)
+    sent_at = models.DateTimeField()
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['item', 'email'], name='project_invitation_once')]

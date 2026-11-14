@@ -2,6 +2,7 @@
 import base64
 from datetime import timedelta
 import secrets
+import time
 import smtplib
 from urllib.parse import quote, urlencode
 
@@ -24,6 +25,7 @@ from django.views.decorators.http import require_GET, require_POST
 from django_otp import login as otp_login
 from django_otp.oath import TOTP
 
+from .mail_support import record_failure, MAIL
 from .models import AccountProfile, AuthChallenge, Authenticator, RecoveryCode
 from .views import audit, error, payload
 
@@ -35,11 +37,27 @@ def limited(scope, identity, maximum, seconds):
     import hashlib
     key = scope + ':' + hashlib.sha256(identity.encode()).hexdigest()
     if cache.add(key, 1, seconds):
+        cache.set(key + ':until', time.time() + seconds, seconds)
         return False
     try:
         return cache.incr(key) > maximum
     except ValueError:
         return not cache.add(key, 1, seconds) and limited(scope, identity, maximum, seconds)
+
+
+def rate_error(scope, identity, seconds, message):
+    import hashlib
+    key = scope + ':' + hashlib.sha256(identity.encode()).hexdigest()
+    remaining = max(1, int(cache.get(key + ':until', time.time() + seconds) - time.time()) + 1)
+    return error(message, 429, code='rate_limited', retry_after=remaining)
+
+
+def mail_limit(email):
+    if limited('signup-email', email, 3, 600):
+        return rate_error('signup-email', email, 600, _('Too many verification emails. Please try again later.'))
+    if limited('signup-total', 'all', settings.SIGNUP_EMAIL_LIMIT, 3600):
+        return rate_error('signup-total', 'all', 3600, _('Too many verification emails. Please try again later.'))
+    return None
 
 
 def field(data, name, maximum):
@@ -83,6 +101,8 @@ def pending(request, lock=False):
 def challenge_json(challenge):
     result = {'stage': challenge.stage, 'email': challenge.email,
               'expiresAt': challenge.expires_at.isoformat()}
+    if challenge.stage == 'email' and challenge.email_sent_at:
+        result['resendAfter'] = max(0, 60 - int((timezone.now() - challenge.email_sent_at).total_seconds()))
     if challenge.stage == 'enroll':
         key = Fernet(settings.MFA_ENCRYPTION_KEY.encode()).decrypt(bytes(challenge.encrypted_key))
         secret = base64.b32encode(key).decode().rstrip('=')
@@ -95,7 +115,7 @@ def authenticated(request, user, device, codes=None):
     login(request, user, backend='django.contrib.auth.backends.ModelBackend')
     otp_login(request, device)
     request.session.pop(SESSION_KEY, None)
-    result = {'name': user.first_name or user.username, 'email': user.username,
+    result = {'id': str(user.pk), 'name': user.first_name or user.username, 'email': user.username,
               'csrfToken': get_token(request)}
     if codes is not None:
         result['recoveryCodes'] = codes
@@ -176,6 +196,7 @@ def send_verification(challenge, code):
         settings.DEFAULT_FROM_EMAIL, [challenge.email], fail_silently=False)
     if delivered != 1:
         raise OSError('Email delivery was not accepted')
+    MAIL.labels('sent').inc()
 
 
 def signup_available():
@@ -189,14 +210,15 @@ def signup_available():
 @payload
 def begin_signup(request, data):
     if not signup_available():
-        return error(_('Account creation is not available yet. Please try again later.'), 503)
+        return error(_('Account creation is not available yet. Please try again later.'), 503, code='signup_unavailable')
     email = field(data, 'email', 150).strip().lower()
     name = field(data, 'name', 150).strip()
     password = field(data, 'password', 1024)
     validate_email(email)
     validate_password(password, get_user_model()(username=email, email=email, first_name=name))
-    if limited('signup-email', email, 3, 600) or limited('signup-total', 'all', settings.SIGNUP_EMAIL_LIMIT, 3600):
-        return error(_('Too many verification emails. Please try again later.'), 429)
+    limit = mail_limit(email)
+    if limit is not None:
+        return limit
     # Pending registrations reserve no usernames and cannot access any workspace.
     code = f'{secrets.randbelow(1000000):06d}'
     challenge = AuthChallenge(stage='email', email=email, name=name, password_hash=make_password(password),
@@ -204,9 +226,9 @@ def begin_signup(request, data):
     challenge.email_code_hash = email_code_hash(challenge, code)
     try:
         send_verification(challenge, code)
-    except (smtplib.SMTPException, OSError):
-        audit.warning('signup_email_delivery_failed')
-        return error(_('We could not send your verification email. Please try again later.'), 503)
+    except (smtplib.SMTPException, OSError) as exc:
+        record_failure(exc)
+        return error(_('We could not send your verification email. Please try again later.'), 503, code='email_unavailable', retry_after=60)
     challenge.save()
     bind(request, challenge)
     return JsonResponse(challenge_json(challenge), status=201)
@@ -250,15 +272,16 @@ def resend_email(request):
         if not challenge or challenge.stage != 'email':
             return error(_('Verification expired. Start creating your account again.'), 401)
         if (timezone.now() - challenge.email_sent_at).total_seconds() < 60:
-            return error(_('Wait a minute before requesting another email.'), 429)
-        if limited('signup-email', challenge.email, 3, 600) or limited('signup-total', 'all', settings.SIGNUP_EMAIL_LIMIT, 3600):
-            return error(_('Too many verification emails. Please try again later.'), 429)
+            return error(_('Wait a minute before requesting another email.'), 429, code='rate_limited', retry_after=60 - (timezone.now() - challenge.email_sent_at).total_seconds())
+        limit = mail_limit(challenge.email)
+        if limit is not None:
+            return limit
         code = f'{secrets.randbelow(1000000):06d}'
         try:
             send_verification(challenge, code)
-        except (smtplib.SMTPException, OSError):
-            audit.warning('signup_email_delivery_failed')
-            return error(_('We could not send your verification email. Please try again later.'), 503)
+        except (smtplib.SMTPException, OSError) as exc:
+            record_failure(exc)
+            return error(_('We could not send your verification email. Please try again later.'), 503, code='email_unavailable', retry_after=60)
         challenge.email_code_hash = email_code_hash(challenge, code)
         challenge.email_sent_at = timezone.now()
         # Resending neither extends expiry nor resets the attempt budget.

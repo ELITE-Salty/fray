@@ -4,6 +4,7 @@ import io
 import json
 import logging
 import re
+import uuid
 from datetime import date, datetime, timedelta
 from functools import wraps
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -13,7 +14,7 @@ from django.contrib.auth.hashers import check_password
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from django.http import HttpResponse, JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
@@ -22,14 +23,22 @@ from django.views.decorators.http import require_GET, require_http_methods
 from django_otp import login as otp_login
 from prometheus_client import CONTENT_TYPE_LATEST, Gauge, generate_latest
 
-from .models import AuthChallenge, Authenticator, Item, RecoveryCode, TimeEntry
+from .models import AuthChallenge, Authenticator, Item, RecoveryCode, TimeEntry, EntryReceipt, ProjectMember
 
 audit = logging.getLogger('fray.audit')
 DEPENDENCIES = Gauge('fray_dependency_ready', 'Database/cache readiness', ['dependency'])
 
 
-def error(message, status=400):
-    return JsonResponse({'error': message}, status=status)
+def error(message, status=400, *, code=None, retry_after=None):
+    body = {'error': message}
+    if code:
+        body['code'] = code
+    if retry_after is not None:
+        body['retryAfter'] = max(1, int(retry_after))
+    response = JsonResponse(body, status=status)
+    if retry_after is not None:
+        response['Retry-After'] = str(body['retryAfter'])
+    return response
 
 
 def private(view):
@@ -106,7 +115,7 @@ def sign_in(request, data):
     otp_login(request, device)
     cache.delete(key)
     audit.info('login_success user=%s', user.pk)
-    response = JsonResponse({'name': user.first_name or user.username, 'email': user.username,
+    response = JsonResponse({'id': str(user.pk), 'name': user.first_name or user.username, 'email': user.username,
                              'csrfToken': get_token(request)})
     response['Cache-Control'] = 'no-store'
     return response
@@ -123,20 +132,34 @@ def sign_out(request):
 @require_GET
 @private
 def me(request):
-    return JsonResponse({'name': request.user.first_name or request.user.username,
+    return JsonResponse({'id': str(request.user.pk), 'name': request.user.first_name or request.user.username,
                          'email': request.user.username})
 
 
-def item_json(item):
-    return {k: str(item.id) if k == 'id' else getattr(item, k)
-            for k in ['id', 'name', 'kind', 'description', 'color', 'pinned', 'archived']}
+def visible_items(user):
+    return Item.objects.filter(Q(owner=user) | Q(memberships__user=user) | Q(timeentry__author=user)).distinct()
+
+
+def loggable_items(user):
+    return Item.objects.filter(Q(owner=user) | Q(memberships__user=user)).distinct()
+
+
+def item_json(item, user=None):
+    result = {k: str(item.id) if k == 'id' else getattr(item, k)
+              for k in ['id', 'name', 'kind', 'description', 'color', 'pinned', 'archived']}
+    if user is not None:
+        member = item.memberships.filter(user=user).exists()
+        result.update(role='owner' if item.owner_id == user.pk else 'member' if member else 'history',
+                      canLog=not item.archived and (item.owner_id == user.pk or member),
+                      memberCount=item.memberships.count())
+    return result
 
 
 def entry_json(entry):
     return {'id': str(entry.id), 'item_id': str(entry.item_id), 'date': entry.local_date.isoformat(),
             'timezone': entry.timezone, 'mode': entry.mode, 'minutes': entry.duration_minutes,
             'start': entry.started_at.isoformat() if entry.started_at else None,
-            'end': entry.ended_at.isoformat() if entry.ended_at else None, 'notes': entry.notes}
+            'end': entry.ended_at.isoformat() if entry.ended_at else None, 'notes': entry.notes, 'revision': entry.revision}
 
 
 def text_field(data, key, max_length, default=''):
@@ -149,19 +172,22 @@ def text_field(data, key, max_length, default=''):
 @require_http_methods(['GET', 'POST', 'PATCH'])
 @private
 @payload
+@transaction.atomic
 def items(request, data, item_id=None):
     if request.method == 'GET':
-        return JsonResponse({'items': [item_json(i) for i in Item.objects.filter(owner=request.user)]})
+        return JsonResponse({'items': [item_json(i, request.user) for i in visible_items(request.user)]})
     if request.method == 'PATCH' and item_id is None:
         return error(_('An item ID is required.'))
     if request.method == 'POST' and item_id is not None:
         return error(_('Create items at /api/items.'))
-    item = get_object_or_404(Item, pk=item_id, owner=request.user) if item_id else Item(owner=request.user)
+    item = get_object_or_404(Item.objects.select_for_update(), pk=item_id, owner=request.user) if item_id else Item(owner=request.user)
     name = text_field(data, 'name', 120, item.name)
     kind = data.get('kind', item.kind)
     color = data.get('color', item.color)
     if not name or kind not in ('project', 'activity') or not isinstance(color, str) or not re.fullmatch(r'#[0-9a-fA-F]{6}', color):
         return error(_('Provide a name, project/activity kind, and a hex color.'))
+    if item.pk and kind == 'activity' and (item.memberships.exists() or TimeEntry.objects.filter(item=item).exclude(author=request.user).exists()):
+        return error(_('Shared projects cannot become personal activities.'), 409)
     item.name, item.kind, item.color = name, kind, color
     item.description = text_field(data, 'description', 500, item.description)
     for field in ('pinned', 'archived'):
@@ -171,7 +197,7 @@ def items(request, data, item_id=None):
             setattr(item, field, data[field])
     item.save()
     audit.info('item_saved user=%s item=%s', request.user.pk, item.id)
-    return JsonResponse(item_json(item), status=200 if item_id else 201)
+    return JsonResponse(item_json(item, request.user), status=200 if item_id else 201)
 
 
 def month_bounds(request):
@@ -186,21 +212,40 @@ def month_bounds(request):
 @require_http_methods(['GET', 'POST', 'PATCH', 'DELETE'])
 @private
 @payload
+@transaction.atomic
 def entries(request, data, entry_id=None):
     if request.method == 'GET':
-        first, end = month_bounds(request)
+        if 'from' in request.GET and 'to' in request.GET:
+            first, end = date.fromisoformat(request.GET['from']), date.fromisoformat(request.GET['to'])
+            if not 0 < (end - first).days <= 93:
+                return error(_('Choose a date range of at most 93 days.'))
+        else:
+            first, end = month_bounds(request)
         rows = TimeEntry.objects.filter(author=request.user, local_date__gte=first, local_date__lt=end)
         return JsonResponse({'entries': [entry_json(e) for e in rows]})
     if request.method in ('PATCH', 'DELETE') and entry_id is None:
         return error(_('An entry ID is required.'))
     if request.method == 'POST' and entry_id is not None:
         return error(_('Create entries at /api/entries.'))
+    get_user_model().objects.select_for_update().get(pk=request.user.pk)
+    operation = uuid.UUID(data['operation']) if request.method == 'POST' and data.get('operation') else None
+    fingerprint = hashlib.sha256(json.dumps(data, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    if operation:
+        receipt = EntryReceipt.objects.filter(user=request.user, operation=operation).first()
+        if receipt:
+            if receipt.fingerprint != fingerprint:
+                return error(_('This offline operation has different content. Review it before retrying.'), 409, code='sync_conflict')
+            if not receipt.entry_id:
+                return error(_('This entry was already deleted on the server.'), 409, code='sync_conflict')
+            return JsonResponse(entry_json(receipt.entry))
     entry = get_object_or_404(TimeEntry, pk=entry_id, author=request.user) if entry_id else TimeEntry(author=request.user)
+    if entry_id and 'revision' in data and (type(data['revision']) is not int or data['revision'] != entry.revision):
+        return error(_('This entry changed on another device. Reload it before saving.'), 409, code='sync_conflict')
     if request.method == 'DELETE':
         entry.delete()
         audit.info('entry_deleted user=%s entry=%s', request.user.pk, entry_id)
         return JsonResponse({'ok': True})
-    item = get_object_or_404(Item, pk=data['item_id'], owner=request.user)
+    item = get_object_or_404(loggable_items(request.user), pk=data['item_id'])
     if item.archived:
         return error(_('Unarchive this item before logging time.'))
     day = date.fromisoformat(data['date'])
@@ -237,7 +282,11 @@ def entries(request, data, entry_id=None):
         entry.item, entry.local_date, entry.timezone = item, day, str(zone)
         entry.mode, entry.started_at, entry.ended_at = mode, start, end
         entry.duration_minutes, entry.notes = minutes, notes
+        if entry_id:
+            entry.revision += 1
         entry.save()
+        if operation:
+            EntryReceipt.objects.create(user=request.user, operation=operation, entry=entry, fingerprint=fingerprint)
     audit.info('entry_saved user=%s entry=%s', request.user.pk, entry.id)
     return JsonResponse(entry_json(entry), status=200 if entry_id else 201)
 
