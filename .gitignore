@@ -18,3 +18,10 @@ infra/cloud-init/user-data.yaml
 *.jks
 *.keystore
 **/backups/
+
+# Apple signing material and generated distributions
+*.p8
+*.p12
+*.mobileprovision
+*.ipa
+*.xcarchive/

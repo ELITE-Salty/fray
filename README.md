@@ -140,3 +140,5 @@ See [the feature guide](docs/app-features.md) for behavior, privacy boundaries a
 See [the faculty plan](docs/faculty-project.md) for how the app will satisfy the virtualization assignment later. The faculty organization, team ID, private repository creation, and final archive are intentionally left until that work starts.
 
 Language catalogs, appearance settings and their tests are documented in [localization and appearance](docs/localization.md).
+
+iOS build prerequisites, source handoff packaging and exporting signed IPAs outside the build folder are documented in [the iOS guide](docs/ios.md). No installable iOS build has been produced yet.
