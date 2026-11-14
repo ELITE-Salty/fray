@@ -21,3 +21,8 @@ groups:
         for: 10m
         labels: {severity: warning}
         annotations: {summary: API p95 latency exceeds one second}
+      - alert: FrayEmailDeliveryFailure
+        expr: sum(increase(fray_mail_deliveries_total{result!="sent"}[15m])) > 0
+        for: 1m
+        labels: {severity: warning}
+        annotations: {summary: Fray email delivery failed; inspect sanitized API audit logs}

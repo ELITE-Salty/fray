@@ -13,7 +13,7 @@ This stack targets **Docker Standalone on Linux amd64/x86_64**. It is not a Swar
 
 Redis uses `redis:7-alpine` from Docker Hub. Custom images contain application/configuration files, **no account passwords, database data, deployment secrets, or registry credentials**. PostgreSQL and Prometheus persist data in named volumes. No source checkout or host configuration mounts are needed in Portainer.
 
-Each publication has a Git revision tag and a moving `release` tag. Prefer the revision tag in the environment file so all four images stay on the same version. Publishing images does not deploy or change your running server.
+Each publication has a Git revision tag and a moving `release` tag. Prefer the revision tag in the environment file so all five images stay on the same version. Publishing images does not deploy or change your running server.
 
 ## 1. Register your registry in Portainer
 
@@ -110,7 +110,7 @@ The API connects to Mailjet using STARTTLS. Other database/cache services remain
 
 Email requests have a per-address limit of three in ten minutes and a global default of 100 per hour (`FRAY_SIGNUP_EMAIL_LIMIT`). The global limit protects the Mailjet quota; tune it for your expected traffic. Resends require a one-minute wait. Email and MFA challenges expire after ten minutes per stage and allow at most five code attempts; resending does not reset those limits. Rate limits use Redis across workers. Additional per-client abuse controls can be applied at Cloudflare.
 
-Use **Create an account** with an inbox you control to verify real Mailjet delivery after deployment. Local tests use an in-memory mail backend or a development console; they do not prove real Mailjet delivery. Changing the stored password invalidates pending sign-in challenges. Password reset and self-service MFA rotation remain future work.
+Use **Create an account** with an inbox you control to verify real Mailjet delivery after deployment. Local tests use an in-memory mail backend or a development console; they do not prove real Mailjet delivery. Changing the stored password invalidates pending sign-in challenges. Password reset and self-service MFA rotation are available; see [account security](../../docs/app-features.md).
 
 Run these daily from a host scheduler (with this stack's Compose file and environment) to remove expired sessions and short-lived signup data:
 
@@ -171,7 +171,7 @@ docker login 10.6.2.49:3000
 sh scripts/publish-images.sh
 ```
 
-This builds all four amd64 images, pushes the Git revision tags, then updates `release`. It uses existing Docker credentials and refuses a dirty source tree. The equivalent individual build is:
+This builds all five amd64 images, pushes the Git revision tags, then updates `release`. It uses existing Docker credentials and refuses a dirty source tree. The equivalent individual build is:
 
 ```sh
 docker build --platform linux/amd64 -f infra/docker/Dockerfile.api -t 10.6.2.49:3000/elitesalty/fray-api:release .
@@ -198,3 +198,7 @@ COMPOSE_FILE=portainer.stack.yaml COMPOSE_PROJECT_NAME=fray sh restore-check.sh 
 These names must match the Portainer stack. Backups contain unencrypted private data and secrets; use your encrypted off-machine backup storage. The restore drill uses a separate temporary database. See [the full operations guide](README.md) for retention, session cleanup, and limitations.
 
 References: [Portainer stack creation/environment import](https://docs.portainer.io/user/docker/stacks/add), [Portainer registry access](https://docs.portainer.io/user/docker/host/registries), [Gitea container registry](https://docs.gitea.com/usage/packages/container/).
+
+## 0.2.0 upgrade
+
+Use the updated stack YAML, add `FRAY_GRAFANA_PASSWORD`, and preserve your current secrets and port 8130. See [monitoring, backup and upgrade steps](OPERATIONS.md). Update all five images together; replacing only the tag in an older four-service-image recipe will not add Grafana.

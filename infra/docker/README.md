@@ -31,7 +31,7 @@ The intended server is Linux x86/amd64 with Docker Engine and the Compose plugin
 
 ## 1. Pull your repository and configure the server
 
-Commit the source changes and push them to your Gitea repository using your normal workflow. On the remote server, clone that repository, then:
+Commit source changes and push them to GitHub. Gitea is used for the image registry. On the remote server, clone that repository, then:
 
 ```sh
 cd fray/infra/docker
@@ -130,7 +130,7 @@ Optional sample data:
 docker compose exec api python manage.py seed_demo you@example.com
 ```
 
-Self-service signup verifies email before creating an account, then requires authenticator confirmation. Password reset and MFA rotation are still planned. Operator-created accounts do not claim verified email ownership. The updated client separates password sign-in from the security-code step; the original combined endpoint remains compatible with older APKs.
+Self-service signup verifies email before creating an account, then requires authenticator confirmation. Password reset and MFA rotation are available in the app. Operator-created accounts do not claim verified email ownership. The updated client separates password sign-in from the security-code step; the original combined endpoint remains compatible with older APKs.
 
 ## 4. Run the Android app
 
@@ -153,7 +153,7 @@ Output: `apps/fray/build/app/outputs/flutter-apk/app-debug.apk`. This is a devel
 
 Until the tunnel is configured, the app can still open **Explore the demo**, but real login will need the live API.
 
-## Updates from Gitea
+## Updates from GitHub
 
 Back up first, then pull and rebuild:
 
@@ -162,7 +162,7 @@ cd fray/infra/docker
 sh backup.sh /srv/private-backups/fray
 git pull --ff-only
 docker compose pull db redis prometheus
-docker compose build --pull api web
+docker compose build --pull api web grafana
 docker compose up -d --wait
 curl -fsS https://frayapi.klanija.com/api/health
 ```
@@ -194,7 +194,7 @@ histogram_quantile(0.95, sum by (le) (rate(fray_http_request_seconds_bucket[5m])
 process_resident_memory_bytes{job="fray"}
 ```
 
-Alert rules cover a missing API target, database/cache readiness, error ratio, and latency. They appear in Prometheus; **notification delivery is not configured**. Add Alertmanager and a receiver for email/chat notifications when your preferred channel is known. Grafana is optional; the metrics are ready for an existing Grafana installation. Host CPU/disk monitoring needs a host exporter separately; current process metrics do not claim to cover the entire host.
+Grafana is included with a provisioned dashboard and five alert rules. Email notifications are enabled only when an operator recipient and SMTP credentials are configured. See [Docker operations](OPERATIONS.md) for access, notification testing, Portainer upgrades and backup commands. Host CPU/disk monitoring still needs a separate host exporter.
 
 `/metrics` is blocked at the public Nginx origin. Docker rotates service logs (three 10 MB files per service). Session rows should be pruned daily using a host cron/systemd schedule for:
 

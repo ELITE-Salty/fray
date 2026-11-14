@@ -1,0 +1,363 @@
+{
+  "apiVersion": 1,
+  "groups": [
+    {
+      "orgId": 1,
+      "name": "Fray operations",
+      "folder": "Fray",
+      "interval": "1m",
+      "rules": [
+        {
+          "uid": "fray-unavailable",
+          "title": "Fray API unavailable",
+          "condition": "C",
+          "for": "2m",
+          "noDataState": "Alerting",
+          "execErrState": "Alerting",
+          "labels": {
+            "service": "fray",
+            "severity": "critical"
+          },
+          "annotations": {
+            "summary": "Fray API unavailable",
+            "description": "Inspect the Fray operations dashboard and API logs; email failure labels identify DNS, authentication, TLS or delivery errors."
+          },
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 600,
+                "to": 0
+              },
+              "datasourceUid": "fray-prometheus",
+              "model": {
+                "refId": "A",
+                "expr": "up{job=\"fray\"}",
+                "instant": true,
+                "range": false,
+                "intervalMs": 15000,
+                "maxDataPoints": 43200
+              }
+            },
+            {
+              "refId": "C",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "C",
+                "type": "threshold",
+                "expression": "A",
+                "conditions": [
+                  {
+                    "type": "query",
+                    "query": {
+                      "params": [
+                        "C"
+                      ]
+                    },
+                    "reducer": {
+                      "type": "last",
+                      "params": []
+                    },
+                    "evaluator": {
+                      "type": "lt",
+                      "params": [
+                        1
+                      ]
+                    },
+                    "operator": {
+                      "type": "and"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "uid": "fray-dependency",
+          "title": "Fray dependency unavailable",
+          "condition": "C",
+          "for": "1m",
+          "noDataState": "Alerting",
+          "execErrState": "Alerting",
+          "labels": {
+            "service": "fray",
+            "severity": "critical"
+          },
+          "annotations": {
+            "summary": "Fray dependency unavailable",
+            "description": "Inspect the Fray operations dashboard and API logs; email failure labels identify DNS, authentication, TLS or delivery errors."
+          },
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 600,
+                "to": 0
+              },
+              "datasourceUid": "fray-prometheus",
+              "model": {
+                "refId": "A",
+                "expr": "min(fray_dependency_ready)",
+                "instant": true,
+                "range": false,
+                "intervalMs": 15000,
+                "maxDataPoints": 43200
+              }
+            },
+            {
+              "refId": "C",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "C",
+                "type": "threshold",
+                "expression": "A",
+                "conditions": [
+                  {
+                    "type": "query",
+                    "query": {
+                      "params": [
+                        "C"
+                      ]
+                    },
+                    "reducer": {
+                      "type": "last",
+                      "params": []
+                    },
+                    "evaluator": {
+                      "type": "lt",
+                      "params": [
+                        1
+                      ]
+                    },
+                    "operator": {
+                      "type": "and"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "uid": "fray-errors",
+          "title": "Fray server error ratio",
+          "condition": "C",
+          "for": "5m",
+          "noDataState": "OK",
+          "execErrState": "Alerting",
+          "labels": {
+            "service": "fray",
+            "severity": "warning"
+          },
+          "annotations": {
+            "summary": "Fray server error ratio",
+            "description": "Inspect the Fray operations dashboard and API logs; email failure labels identify DNS, authentication, TLS or delivery errors."
+          },
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 600,
+                "to": 0
+              },
+              "datasourceUid": "fray-prometheus",
+              "model": {
+                "refId": "A",
+                "expr": "sum(rate(fray_http_requests_total{status=~\"5..\"}[5m])) / clamp_min(sum(rate(fray_http_requests_total[5m])), 0.001) or vector(0)",
+                "instant": true,
+                "range": false,
+                "intervalMs": 15000,
+                "maxDataPoints": 43200
+              }
+            },
+            {
+              "refId": "C",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "C",
+                "type": "threshold",
+                "expression": "A",
+                "conditions": [
+                  {
+                    "type": "query",
+                    "query": {
+                      "params": [
+                        "C"
+                      ]
+                    },
+                    "reducer": {
+                      "type": "last",
+                      "params": []
+                    },
+                    "evaluator": {
+                      "type": "gt",
+                      "params": [
+                        0.05
+                      ]
+                    },
+                    "operator": {
+                      "type": "and"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "uid": "fray-slow",
+          "title": "Fray p95 latency above one second",
+          "condition": "C",
+          "for": "10m",
+          "noDataState": "OK",
+          "execErrState": "Alerting",
+          "labels": {
+            "service": "fray",
+            "severity": "warning"
+          },
+          "annotations": {
+            "summary": "Fray p95 latency above one second",
+            "description": "Inspect the Fray operations dashboard and API logs; email failure labels identify DNS, authentication, TLS or delivery errors."
+          },
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 600,
+                "to": 0
+              },
+              "datasourceUid": "fray-prometheus",
+              "model": {
+                "refId": "A",
+                "expr": "histogram_quantile(0.95, sum by (le) (rate(fray_http_request_seconds_bucket[5m])))",
+                "instant": true,
+                "range": false,
+                "intervalMs": 15000,
+                "maxDataPoints": 43200
+              }
+            },
+            {
+              "refId": "C",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "C",
+                "type": "threshold",
+                "expression": "A",
+                "conditions": [
+                  {
+                    "type": "query",
+                    "query": {
+                      "params": [
+                        "C"
+                      ]
+                    },
+                    "reducer": {
+                      "type": "last",
+                      "params": []
+                    },
+                    "evaluator": {
+                      "type": "gt",
+                      "params": [
+                        1
+                      ]
+                    },
+                    "operator": {
+                      "type": "and"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "uid": "fray-email",
+          "title": "Fray email delivery failures",
+          "condition": "C",
+          "for": "1m",
+          "noDataState": "OK",
+          "execErrState": "Alerting",
+          "labels": {
+            "service": "fray",
+            "severity": "warning"
+          },
+          "annotations": {
+            "summary": "Fray email delivery failures",
+            "description": "Inspect the Fray operations dashboard and API logs; email failure labels identify DNS, authentication, TLS or delivery errors."
+          },
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 600,
+                "to": 0
+              },
+              "datasourceUid": "fray-prometheus",
+              "model": {
+                "refId": "A",
+                "expr": "sum(increase(fray_mail_deliveries_total{result!=\"sent\"}[15m])) or vector(0)",
+                "instant": true,
+                "range": false,
+                "intervalMs": 15000,
+                "maxDataPoints": 43200
+              }
+            },
+            {
+              "refId": "C",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "C",
+                "type": "threshold",
+                "expression": "A",
+                "conditions": [
+                  {
+                    "type": "query",
+                    "query": {
+                      "params": [
+                        "C"
+                      ]
+                    },
+                    "reducer": {
+                      "type": "last",
+                      "params": []
+                    },
+                    "evaluator": {
+                      "type": "gt",
+                      "params": [
+                        0
+                      ]
+                    },
+                    "operator": {
+                      "type": "and"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

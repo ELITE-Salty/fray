@@ -2,7 +2,7 @@
 
 Private time tracking for projects and recurring activities, built with **Flutter** and a **Django API**. The implementation follows the supplied purple-and-white mockups, with responsive web and Android development support. iOS scaffolding is included; iOS device validation and store publishing remain future work.
 
-**Current scope:** a usable personal-tracking foundation. Vagrant and cloud-init are **future deployment work**, as agreed; their folders document that plan and do not provision VMs yet. The separate **Docker + Cloudflare Tunnel** deployment lives in [infra/docker](infra/docker/README.md), configured for `frayapi.klanija.com`. This is not a finished faculty submission or a production release.
+**Current scope:** personal time tracking with offline entries and aggregate project sharing. Vagrant and cloud-init are **future deployment work**, as agreed; their folders document that plan and do not provision VMs yet. The separate **Docker + Cloudflare Tunnel** deployment lives in [infra/docker](infra/docker/README.md), configured for `frayapi.klanija.com`. This is not a finished faculty submission or a production release.
 
 For your Gitea image registry and Portainer workflow, start with [the Portainer deployment guide](infra/docker/PORTAINER.md). It includes the ready-to-paste stack, private environment generation, Cloudflare routing, account creation, and Android phone installation.
 
@@ -63,13 +63,17 @@ Real account data persists in `backend/db.sqlite3`. In development only, MFA enc
 
 ## What works
 
-- Responsive calendar with month navigation, selected-day details, and separate unscheduled time.
+- Responsive Month/Week/Day calendar, clickable hour slots, selected-day details, and separate unscheduled time.
 - Project/activity creation and editing, descriptions, colors, search, type filters, favorites, archive/unarchive.
 - Timed entries, overnight intervals, duration-only entries, private notes, editing, and deletion.
-- Monthly personal totals and CSV download on web; native CSV export copies text to the clipboard.
+- Monthly personal totals, CSV and summary/detailed PDF exports; native file sharing and web downloads. Notes are opt-in for PDF.
 - Password + TOTP authentication, encrypted MFA seeds, replay prevention, hashed single-use recovery codes, login throttling, CSRF protection, and server-side sessions.
 - Self-service signup with email verification, authenticator enrollment, and recovery-code handoff; separate password and MFA sign-in screens.
-- Owner-scoped queries and reports. Knowing someone else's UUID does not grant access.
+- Private individual entries/reports; shared project memberships and email invitations expose aggregate time only.
+- Persistent device timer, duplicate entries, reusable templates and personal weekly goals.
+- Offline entry queue with durable storage, idempotent creation, revision conflicts and session reauthentication.
+- Password reset/change, authenticator replacement, recovery-code regeneration and account deletion.
+- Grafana dashboards/alerts, sanitized mail diagnostics and tested backup restoration.
 - Database constraints and migrations; an idempotent sample-data command.
 - Health endpoint, Prometheus-format request/latency metrics, and audit logs without passwords, OTP codes, or notes.
 
@@ -127,11 +131,11 @@ Set `FRAY_BROWSER_URL` for a different port and `PLAYWRIGHT_CHROMIUM_EXECUTABLE`
 
 ## Next milestones
 
-1. Self-service password reset, MFA rotation, and reauthentication. Signup, email verification, and initial MFA enrollment are implemented; production email delivery needs configured Mailjet credentials.
-2. Week/day time-grid views, pagination for large histories, broader mobile device validation, and release signing. Android now defaults to `https://frayapi.klanija.com`; native sessions persist in secure storage until server expiry. The public route must be configured on your server before real login works.
-3. Collaboration: memberships, expiring invitations, aggregate reports, and explicit sharing permissions. Current projects are personal; the schema will be extended with memberships before any shared access is enabled.
-4. XLSX and summary/detailed PDF exports, account export/deletion, accessibility/device review, and store-ready icons/signing. Generated platform launcher icons are still placeholders.
-5. The two VM deployment variants, public HTTPS verification, concurrency/load tests, monitoring dashboards/notification delivery, faculty VM backup/restore verification, and deployment recordings. Docker self-hosting already has PostgreSQL/Redis integration, Prometheus scraping/rules, and a tested backup restore; it does not replace the assignment’s apt-based VM provisioning.
+1. iOS: validate the existing Flutter target on macOS/Xcode, signing, device testing and distribution.
+2. Broader mobile/accessibility review, release signing, app icons, pagination for large histories, XLSX and full account-data export.
+3. Vagrant and cloud-init, apt-based provisioning, VM reboot/load/backup tests and faculty deployment recordings. These follow iOS, as agreed.
+
+See [the feature guide](docs/app-features.md) for behavior, privacy boundaries and offline limitations, and [Docker operations](infra/docker/OPERATIONS.md) for upgrading Portainer, Grafana and restore drills.
 
 See [the faculty plan](docs/faculty-project.md) for how the app will satisfy the virtualization assignment later. The faculty organization, team ID, private repository creation, and final archive are intentionally left until that work starts.
 

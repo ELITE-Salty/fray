@@ -12,18 +12,18 @@ if test -n "$(git status --porcelain)"; then
     exit 1
 fi
 # Build every image before publishing any of them.
-for component in api web db monitoring; do
+for component in api web db monitoring grafana; do
     docker build --platform linux/amd64 \
         --label "org.opencontainers.image.revision=$revision" \
         -f "infra/docker/Dockerfile.$component" \
         -t "${registry}/fray-${component}:${tag}" .
 done
-for component in api web db monitoring; do
+for component in api web db monitoring grafana; do
     docker push "${registry}/fray-${component}:${tag}"
 done
 # Update the convenience channel only after all versioned pushes succeeded.
-for component in api web db monitoring; do
+for component in api web db monitoring grafana; do
     docker tag "${registry}/fray-${component}:${tag}" "${registry}/fray-${component}:release"
     docker push "${registry}/fray-${component}:release"
 done
-printf '\nPublished all four images. Set FRAY_IMAGE_TAG=%s in Portainer.\n' "$tag"
+printf '\nPublished all five images. Set FRAY_IMAGE_TAG=%s in Portainer.\n' "$tag"

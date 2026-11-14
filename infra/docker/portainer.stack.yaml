@@ -128,7 +128,46 @@ services:
       api: {condition: service_healthy}
     logging: *logging
 
+  grafana:
+    image: ${FRAY_REGISTRY:-gitea.klanija.com/elitesalty}/fray-grafana:${FRAY_IMAGE_TAG:-release}
+    environment:
+      GF_SECURITY_ADMIN_USER: ${FRAY_GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${FRAY_GRAFANA_PASSWORD:?Set a strong Grafana admin password}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      GF_PLUGINS_PREINSTALL_DISABLED: 'true'
+      GF_SERVER_ROOT_URL: ${FRAY_GRAFANA_URL:-http://localhost:3001}
+      GF_SECURITY_COOKIE_SECURE: ${FRAY_GRAFANA_COOKIE_SECURE:-false}
+      GF_SMTP_HOST: ${FRAY_EMAIL_HOST:-in-v3.mailjet.com}:${FRAY_EMAIL_PORT:-587}
+      GF_SMTP_USER: ${FRAY_EMAIL_USER:-}
+      GF_SMTP_PASSWORD: ${FRAY_EMAIL_PASSWORD:-}
+      GF_SMTP_FROM_ADDRESS: ${FRAY_ALERT_EMAIL_FROM:-noreply@klanija.com}
+      GF_SMTP_FROM_NAME: Fray monitoring
+      GF_SMTP_STARTTLS_POLICY: MandatoryStartTLS
+      FRAY_ALERT_EMAIL_TO: ${FRAY_ALERT_EMAIL_TO:-}
+    volumes: ['grafana-data:/var/lib/grafana']
+    ports: ['127.0.0.1:${FRAY_GRAFANA_PORT:-3001}:3000']
+    networks:
+      monitoring:
+      edge:
+        aliases: [fray-grafana]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ['/tmp:size=64m,mode=1777']
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD-SHELL, 'wget -q -O /dev/null http://127.0.0.1:3000/api/health']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    logging: *logging
+
 volumes:
+  grafana-data:
   postgres-data:
   prometheus-data:
 networks:
