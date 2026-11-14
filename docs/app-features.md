@@ -19,6 +19,8 @@ Accounts created with the operator CLI have no verified-email claim. They can ve
 
 ## Time tracking
 
+Duration-only entries use separate **Hours** and **Minutes** fields (0–24 hours, 0–59 minutes). Empty fields count as zero; the total must remain between one minute and 24 hours. Existing entries and template drafts split their saved total into these fields. The API/database still store a single integer number of minutes.
+
 The timer stores its UTC start and original timezone on this device. It survives app restarts and does not require an Android background service. **Stop and review** opens a timed-entry draft; cancelling keeps the timer. Saving rounds outward to whole minutes, with a minimum of one minute. Timers longer than 24 hours need separate manual entries. This is one timer per device, not a synchronized timer across devices. Demo timers remain in memory.
 
 An entry's menu offers **Duplicate entry** and **Save as template**. Duplication uses the selected day and creates a separate record. Templates retain the project, duration and notes; using one opens an editable duration-only draft. Templates and goals are account data and require a connection to change.

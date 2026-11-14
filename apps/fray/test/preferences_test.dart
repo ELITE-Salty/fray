@@ -119,10 +119,7 @@ void main() {
           }
           await tester.tap(find.text(translate(language, 'Add entry')));
           await tester.pumpAndSettle();
-          expect(
-            find.text(translate(language, 'Duration in minutes')),
-            findsOneWidget,
-          );
+          expect(find.text(translate(language, 'Hours')), findsOneWidget);
           expect(tester.takeException(), isNull);
           await tester.tap(find.text(translate(language, 'Cancel')));
           await tester.pumpAndSettle();

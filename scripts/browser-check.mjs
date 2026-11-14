@@ -108,7 +108,8 @@ try {
     await page.getByText('Browser test project').waitFor();
     await page.getByRole('button', { name: 'Calendar', exact: true }).click();
     await page.getByRole('button', { name: 'Add entry', exact: true }).click();
-    await typeInto(page.getByRole('textbox', { name: /^Duration in minutes/ }), '75');
+    await typeInto(page.getByRole('textbox', { name: 'Hours', exact: true }), '1');
+    await typeInto(page.getByRole('textbox', { name: 'Minutes', exact: true }), '15');
     await typeInto(page.getByRole('textbox', { name: /^Notes/ }), 'Persistent browser test');
     await page.getByRole('button', { name: 'Save entry', exact: true }).click();
     await page.getByRole('button', { name: 'Entries', exact: true }).click();
@@ -123,7 +124,8 @@ try {
     await page.getByRole('button', { name: 'Start timer', exact: true }).click();
     await page.route('**/api/**', route => route.abort());
     await page.getByRole('button', { name: 'Add entry', exact: true }).click();
-    await typeInto(page.getByRole('textbox', { name: /^Duration in minutes/ }), '30');
+    await typeInto(page.getByRole('textbox', { name: 'Hours', exact: true }), '0');
+    await typeInto(page.getByRole('textbox', { name: 'Minutes', exact: true }), '30');
     await typeInto(page.getByRole('textbox', { name: /^Notes/ }), 'Offline browser entry');
     await page.getByRole('button', { name: 'Save entry', exact: true }).click();
     await page.locator('[aria-label*="Pending entries: 1"]').first().waitFor();

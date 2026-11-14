@@ -28,7 +28,7 @@ class EntryEditor extends StatefulWidget {
 
 class _EntryEditorState extends State<EntryEditor> with LocalizedState {
   final form = GlobalKey<FormState>();
-  late final TextEditingController minutes, notes;
+  late final TextEditingController hours, minutes, notes;
   late DateTime day;
   late TimeOfDay start, end;
   late TimeContext clock;
@@ -54,7 +54,9 @@ class _EntryEditorState extends State<EntryEditor> with LocalizedState {
         : TimeOfDay.fromDateTime(clock.local(entry!.end!));
     startOccurrence = widget.duplicate ? null : entry?.start;
     endOccurrence = widget.duplicate ? null : entry?.end;
-    minutes = TextEditingController(text: '${entry?.minutes ?? 60}');
+    final duration = entry?.minutes ?? 60;
+    hours = TextEditingController(text: '${duration ~/ 60}');
+    minutes = TextEditingController(text: '${duration % 60}');
     notes = TextEditingController(text: entry?.notes ?? '');
     itemId = entry?.itemId ?? widget.store.items.firstWhere((i) => i.canLog).id;
     mode = entry?.mode ?? (widget.initialStart == null ? 'duration' : 'timed');
@@ -67,7 +69,7 @@ class _EntryEditorState extends State<EntryEditor> with LocalizedState {
 
   @override
   void dispose() {
-    for (final c in [minutes, notes]) {
+    for (final c in [hours, minutes, notes]) {
       c.dispose();
     }
     super.dispose();
@@ -176,10 +178,47 @@ class _EntryEditorState extends State<EntryEditor> with LocalizedState {
     );
   }
 
+  int? durationPart(TextEditingController controller, int maximum) {
+    final text = controller.text.trim();
+    if (text.isEmpty) return 0;
+    if (!RegExp(r'^[0-9]+$').hasMatch(text)) return null;
+    final value = int.tryParse(text);
+    return value != null && value <= maximum ? value : null;
+  }
+
+  int get enteredDuration {
+    final h = durationPart(hours, 24), m = durationPart(minutes, 59);
+    if (h == null || m == null) {
+      throw FormatException(tr('Enter whole hours (0–24) and minutes (0–59).'));
+    }
+    return h * 60 + m;
+  }
+
+  Widget durationField({required bool isHours}) {
+    final controller = isHours ? hours : minutes;
+    return TextFormField(
+      key: ValueKey(isHours ? 'entry-hours' : 'entry-minutes'),
+      controller: controller,
+      enabled: !busy,
+      onChanged: (_) => setState(() => error = null),
+      keyboardType: TextInputType.number,
+      textInputAction: TextInputAction.next,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      validator: (_) => durationPart(controller, isHours ? 24 : 59) == null
+          ? tr(isHours ? 'Use 0–24 whole hours.' : 'Use 0–59 whole minutes.')
+          : null,
+      decoration: InputDecoration(
+        labelText: tr(isHours ? 'Hours' : 'Minutes'),
+        hintText: '0',
+        errorMaxLines: 3,
+      ),
+    );
+  }
+
   String get previewDuration {
     try {
       final duration = mode == 'duration'
-          ? int.parse(minutes.text)
+          ? enteredDuration
           : clock
                 .resolve(endDay, end, occurrence: endOccurrence)
                 .difference(
@@ -190,9 +229,7 @@ class _EntryEditorState extends State<EntryEditor> with LocalizedState {
           ? tr('Total: {duration}', {'duration': context.duration(duration)})
           : tr('Choose an interval between 1 minute and 24 hours.');
     } on FormatException catch (e) {
-      return mode == 'timed'
-          ? tr(e.message)
-          : tr('Enter a duration in minutes.');
+      return tr(e.message);
     }
   }
 
@@ -210,7 +247,7 @@ class _EntryEditorState extends State<EntryEditor> with LocalizedState {
         to = clock.resolve(endDay, end, occurrence: endOccurrence);
         duration = to.difference(from).inMinutes;
       } else {
-        duration = int.tryParse(minutes.text) ?? 0;
+        duration = enteredDuration;
       }
       if (duration < 1 || duration > 1440) {
         throw FormatException(
@@ -329,17 +366,22 @@ class _EntryEditorState extends State<EntryEditor> with LocalizedState {
                     : (v) => setState(() => mode = v.first),
               ),
               const SizedBox(height: 18),
-              if (mode == 'duration')
-                TextFormField(
-                  controller: minutes,
-                  onChanged: (_) => setState(() {}),
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: tr('Duration in minutes'),
-                    helperText: tr('No start or end time will be invented.'),
-                  ),
-                )
-              else ...[
+              if (mode == 'duration') ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: durationField(isHours: true)),
+                    const SizedBox(width: 12),
+                    Expanded(child: durationField(isHours: false)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  tr('No start or end time will be invented.'),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+              ] else ...[
                 Row(
                   children: [
                     Expanded(

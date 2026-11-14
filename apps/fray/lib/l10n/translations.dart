@@ -914,8 +914,27 @@ const translations = <String, List<String>>{
     "Pred sprejemanjem povabil potrdite e-poštni naslov s ponastavitvijo gesla.",
     "Prije prihvaćanja pozivnica potvrdite adresu e-pošte ponovnim postavljanjem lozinke.",
   ],
-  "Only you can access your individual entries, notes, and personal reports.": ["Samo vi lahko dostopate do svojih posameznih vnosov, opomb in osebnih poročil.", "Samo vi možete pristupiti svojim pojedinačnim unosima, bilješkama i osobnim izvještajima."],
+  "Only you can access your individual entries, notes, and personal reports.": [
+    "Samo vi lahko dostopate do svojih posameznih vnosov, opomb in osebnih poročil.",
+    "Samo vi možete pristupiti svojim pojedinačnim unosima, bilješkama i osobnim izvještajima.",
+  ],
   "Remove this member?": ["Odstrani tega člana?", "Ukloniti ovog člana?"],
-  "Transfer ownership to this member?": ["Prenesi lastništvo na tega člana?", "Prenijeti vlasništvo na ovog člana?"],
+  "Transfer ownership to this member?": [
+    "Prenesi lastništvo na tega člana?",
+    "Prenijeti vlasništvo na ovog člana?",
+  ],
   "Leave this project?": ["Zapusti ta projekt?", "Napustiti ovaj projekt?"],
+  "Hours": ["Ure", "Sati"],
+  "Use 0–24 whole hours.": [
+    "Vnesite od 0 do 24 celih ur.",
+    "Unesite od 0 do 24 cijela sata.",
+  ],
+  "Use 0–59 whole minutes.": [
+    "Vnesite od 0 do 59 celih minut.",
+    "Unesite od 0 do 59 cijelih minuta.",
+  ],
+  "Enter whole hours (0–24) and minutes (0–59).": [
+    "Vnesite cele ure (0–24) in minute (0–59).",
+    "Unesite cijele sate (0–24) i minute (0–59).",
+  ],
 };
