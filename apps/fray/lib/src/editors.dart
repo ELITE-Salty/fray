@@ -10,11 +10,17 @@ class EntryEditor extends StatefulWidget {
   final FrayStore store;
   final DateTime day;
   final TimeRecord? entry;
+  final bool duplicate;
+  final TimeOfDay? initialStart;
+  final Future<void> Function()? onSaved;
   const EntryEditor({
     super.key,
     required this.store,
     required this.day,
     this.entry,
+    this.duplicate = false,
+    this.onSaved,
+    this.initialStart,
   });
   @override
   State<EntryEditor> createState() => _EntryEditorState();
@@ -37,25 +43,26 @@ class _EntryEditorState extends State<EntryEditor> with LocalizedState {
     clock = widget.entry == null
         ? widget.store.clock
         : TimeContext(entry!.timezone);
-    day = entry == null
+    day = entry == null || widget.duplicate
         ? DateUtils.dateOnly(widget.day)
         : DateTime.parse(entry.date);
     start = entry?.start == null
-        ? const TimeOfDay(hour: 9, minute: 0)
+        ? widget.initialStart ?? const TimeOfDay(hour: 9, minute: 0)
         : TimeOfDay.fromDateTime(clock.local(entry!.start!));
     end = entry?.end == null
-        ? const TimeOfDay(hour: 10, minute: 0)
+        ? TimeOfDay(hour: (start.hour + 1) % 24, minute: start.minute)
         : TimeOfDay.fromDateTime(clock.local(entry!.end!));
-    startOccurrence = entry?.start;
-    endOccurrence = entry?.end;
+    startOccurrence = widget.duplicate ? null : entry?.start;
+    endOccurrence = widget.duplicate ? null : entry?.end;
     minutes = TextEditingController(text: '${entry?.minutes ?? 60}');
     notes = TextEditingController(text: entry?.notes ?? '');
-    itemId =
-        entry?.itemId ?? widget.store.items.firstWhere((i) => !i.archived).id;
-    mode = entry?.mode ?? 'duration';
+    itemId = entry?.itemId ?? widget.store.items.firstWhere((i) => i.canLog).id;
+    mode = entry?.mode ?? (widget.initialStart == null ? 'duration' : 'timed');
     overnight =
+        widget.initialStart?.hour == 23 ||
         entry?.start != null &&
-        dayKey(clock.local(entry!.start!)) != dayKey(clock.local(entry.end!));
+            dayKey(clock.local(entry!.start!)) !=
+                dayKey(clock.local(entry.end!));
   }
 
   @override
@@ -219,7 +226,10 @@ class _EntryEditorState extends State<EntryEditor> with LocalizedState {
         'end': to?.toIso8601String(),
         'minutes': duration,
         'notes': notes.text,
-      }, widget.entry?.id);
+        if (!widget.duplicate && widget.entry != null)
+          'revision': widget.entry!.revision,
+      }, widget.duplicate ? null : widget.entry?.id);
+      await widget.onSaved?.call();
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
@@ -270,7 +280,9 @@ class _EntryEditorState extends State<EntryEditor> with LocalizedState {
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: Text(
-      widget.entry == null ? tr('Add time entry') : tr('Edit time entry'),
+      widget.entry == null || widget.duplicate
+          ? tr('Add time entry')
+          : tr('Edit time entry'),
     ),
     content: SizedBox(
       width: 440,
@@ -287,7 +299,7 @@ class _EntryEditorState extends State<EntryEditor> with LocalizedState {
                   labelText: tr('Project / activity'),
                 ),
                 items: widget.store.items
-                    .where((i) => !i.archived || i.id == itemId)
+                    .where((i) => i.canLog || i.id == itemId)
                     .map(
                       (i) => DropdownMenuItem(
                         value: i.id,
@@ -396,7 +408,7 @@ class _EntryEditorState extends State<EntryEditor> with LocalizedState {
       ),
     ),
     actions: [
-      if (widget.entry != null)
+      if (widget.entry != null && !widget.duplicate)
         TextButton(
           onPressed: busy ? null : delete,
           child: Text(

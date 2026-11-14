@@ -6,6 +6,9 @@ import ssl
 from prometheus_client import Counter
 
 MAIL = Counter('fray_mail_deliveries_total', 'Mail delivery attempts', ['result'])
+# Publish zero baselines so the first failure is visible to increase()/rate().
+for result in ('sent', 'dns', 'authentication', 'tls', 'timeout', 'sender', 'recipient', 'smtp', 'connection'):
+    MAIL.labels(result).inc(0)
 
 
 def failure_kind(exc):

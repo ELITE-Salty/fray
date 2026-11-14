@@ -576,4 +576,346 @@ const translations = <String, List<String>>{
     "Vaša potrditvena koda Fray",
     "Vaš kod za potvrdu za Fray",
   ],
+  "A timer is already running on this device.": [
+    "V tej napravi že teče časovnik.",
+    "Na ovom uređaju već radi mjerač vremena.",
+  ],
+  "Accept": ["Sprejmi", "Prihvati"],
+  "Account security": ["Varnost računa", "Sigurnost računa"],
+  "Account security is available for signed-in accounts.": [
+    "Varnost računa je na voljo po prijavi.",
+    "Sigurnost računa dostupna je nakon prijave.",
+  ],
+  "Choose a weekly target for your personal tracked time.": [
+    "Izberite tedenski cilj za svoj zabeleženi čas.",
+    "Odaberite tjedni cilj za svoje zabilježeno vrijeme.",
+  ],
+  "Confirm": ["Potrdi", "Potvrdi"],
+  "Could not save on this device. Free some storage and try again.": [
+    "Shranjevanje v napravi ni uspelo. Sprostite nekaj prostora in poskusite znova.",
+    "Spremanje na uređaj nije uspjelo. Oslobodite prostor i pokušajte ponovno.",
+  ],
+  "Current password": ["Trenutno geslo", "Trenutačna lozinka"],
+  "Day": ["Dan", "Dan"],
+  "Decline": ["Zavrni", "Odbij"],
+  "Delete template": ["Izbriši predlogo", "Izbriši predložak"],
+  "Discard": ["Zavrzi", "Odbaci"],
+  "Discard pending change?": [
+    "Zavrzi čakajočo spremembo?",
+    "Odbaciti promjenu na čekanju?",
+  ],
+  "Discard running timer?": [
+    "Zavrzi tekoči časovnik?",
+    "Odbaciti pokrenuti mjerač vremena?",
+  ],
+  "Duplicate entry": ["Podvoji vnos", "Dupliciraj unos"],
+  "Enter your account email to request a password reset code.": [
+    "Vnesite e-poštni naslov računa, da prejmete kodo za ponastavitev gesla.",
+    "Unesite adresu e-pošte računa da biste dobili kod za ponovno postavljanje lozinke.",
+  ],
+  "Entry actions": ["Dejanja vnosa", "Radnje unosa"],
+  "Export PDF": ["Izvozi PDF", "Izvezi PDF"],
+  "Forgot password?": ["Ste pozabili geslo?", "Zaboravili ste lozinku?"],
+  "If this account exists, a reset code has been sent. Use it with your authenticator or a recovery code.":
+      [
+        "Če račun obstaja, je bila poslana koda za ponastavitev. Uporabite jo skupaj s kodo iz aplikacije za preverjanje pristnosti ali obnovitveno kodo.",
+        "Ako račun postoji, poslan je kod za ponovno postavljanje. Upotrijebite ga uz kod iz aplikacije za autentifikaciju ili kod za oporavak.",
+      ],
+  "Include individual entries": [
+    "Vključi posamezne vnose",
+    "Uključi pojedinačne unose",
+  ],
+  "Include private notes": [
+    "Vključi zasebne opombe",
+    "Uključi privatne bilješke",
+  ],
+  "Includes pending local entries.": [
+    "Vključuje lokalne vnose, ki čakajo na sinhronizacijo.",
+    "Uključuje lokalne unose koji čekaju sinkronizaciju.",
+  ],
+  "Invitations": ["Povabila", "Pozivnice"],
+  "Invitations are linked to your signed-in email address.": [
+    "Povabila so vezana na e-poštni naslov prijavljenega računa.",
+    "Pozivnice su povezane s adresom e-pošte prijavljenog računa.",
+  ],
+  "Invite by email": ["Povabi po e-pošti", "Pozovi e-poštom"],
+  "Leave project": ["Zapusti projekt", "Napusti projekt"],
+  "Members": ["Člani", "Članovi"],
+  "Month": ["Mesec", "Mjesec"],
+  "New entries are saved on this device and retried when you reconnect. Keep the app installed until syncing completes.":
+      [
+        "Novi vnosi so shranjeni v tej napravi in bodo poslani ob ponovni povezavi. Aplikacije ne odstranite, dokler sinhronizacija ni končana.",
+        "Novi unosi spremljeni su na ovom uređaju i bit će poslani nakon ponovnog povezivanja. Nemojte uklanjati aplikaciju dok sinkronizacija ne završi.",
+      ],
+  "New password": ["Novo geslo", "Nova lozinka"],
+  "Next": ["Naprej", "Sljedeće"],
+  "No pending invitations.": [
+    "Ni čakajočih povabil.",
+    "Nema pozivnica na čekanju.",
+  ],
+  "No time entry will be saved.": [
+    "Časovni vnos ne bo shranjen.",
+    "Vremenski unos neće biti spremljen.",
+  ],
+  "Only aggregate time is shared. Individual entries and notes remain private.":
+      [
+        "V skupni rabi je le skupni čas. Posamezni vnosi in opombe ostanejo zasebni.",
+        "Dijeli se samo ukupno vrijeme. Pojedinačni unosi i bilješke ostaju privatni.",
+      ],
+  "Pending entries: {count}": [
+    "Čakajoči vnosi: {count}",
+    "Unosi na čekanju: {count}",
+  ],
+  "Pending invitation": ["Čakajoče povabilo", "Pozivnica na čekanju"],
+  "Pending sync": ["Čaka na sinhronizacijo", "Čeka sinkronizaciju"],
+  "Personal entries and notes stay private. Historical time remains in the project totals.":
+      [
+        "Osebni vnosi in opombe ostanejo zasebni. Pretekli čas ostane v seštevku projekta.",
+        "Osobni unosi i bilješke ostaju privatni. Prethodno vrijeme ostaje u ukupnom vremenu projekta.",
+      ],
+  "Please wait for syncing to finish.": [
+    "Počakajte, da se sinhronizacija konča.",
+    "Pričekajte završetak sinkronizacije.",
+  ],
+  "Previous": ["Nazaj", "Prethodno"],
+  "Project total this month": [
+    "Skupni čas projekta ta mesec",
+    "Ukupno vrijeme projekta ovog mjeseca",
+  ],
+  "Project unavailable": ["Projekt ni na voljo", "Projekt nije dostupan"],
+  "Remove member": ["Odstrani člana", "Ukloni člana"],
+  "Resend in {seconds}s": [
+    "Ponovno pošlji čez {seconds}s",
+    "Ponovno pošalji za {seconds}s",
+  ],
+  "Resend invitation": ["Ponovno pošlji povabilo", "Ponovno pošalji pozivnicu"],
+  "Reset password": ["Ponastavi geslo", "Ponovno postavi lozinku"],
+  "Review entry": ["Preglej vnos", "Pregledaj unos"],
+  "Review or discard this pending change before deleting the entry.": [
+    "Pred brisanjem vnosa preglejte ali zavrzite čakajočo spremembo.",
+    "Prije brisanja unosa pregledajte ili odbacite promjenu na čekanju.",
+  ],
+  "Revoke invitation": ["Prekliči povabilo", "Opozovi pozivnicu"],
+  "Save an entry as a template from its menu.": [
+    "V meniju vnosa ga shranite kot predlogo.",
+    "U izborniku unosa spremite ga kao predložak.",
+  ],
+  "Save as template": ["Shrani kot predlogo", "Spremi kao predložak"],
+  "Save these new recovery codes. Previous recovery codes no longer work.": [
+    "Shranite nove obnovitvene kode. Prejšnje obnovitvene kode ne delujejo več.",
+    "Spremite nove kodove za oporavak. Prethodni kodovi više ne vrijede.",
+  ],
+  "Scan the code or copy the setup key. Your current authenticator works until you confirm the new one.":
+      [
+        "Skenirajte kodo ali kopirajte nastavitveni ključ. Trenutna aplikacija za preverjanje pristnosti deluje, dokler ne potrdite nove.",
+        "Skenirajte kod ili kopirajte ključ za postavljanje. Trenutačna aplikacija za autentifikaciju radi dok ne potvrdite novu.",
+      ],
+  "Send reset code": [
+    "Pošlji kodo za ponastavitev",
+    "Pošalji kod za ponovno postavljanje",
+  ],
+  "Set goal": ["Nastavi cilj", "Postavi cilj"],
+  "Sharing and members": ["Skupna raba in člani", "Dijeljenje i članovi"],
+  "Sharing is available for signed-in accounts.": [
+    "Skupna raba je na voljo po prijavi.",
+    "Dijeljenje je dostupno nakon prijave.",
+  ],
+  "Sign in again": ["Znova se prijavi", "Ponovno se prijavi"],
+  "Sign in to the original account to sync these entries.": [
+    "Za sinhronizacijo teh vnosov se prijavite v izvirni račun.",
+    "Za sinkronizaciju ovih unosa prijavite se u izvorni račun.",
+  ],
+  "Start timer": ["Zaženi časovnik", "Pokreni mjerač vremena"],
+  "Stop and review": ["Ustavi in preglej", "Zaustavi i pregledaj"],
+  "Sync now": ["Sinhroniziraj zdaj", "Sinkroniziraj sada"],
+  "Sync or discard pending entries and stop the timer before deleting your account.":
+      [
+        "Pred brisanjem računa sinhronizirajte ali zavrzite čakajoče vnose in ustavite časovnik.",
+        "Prije brisanja računa sinkronizirajte ili odbacite unose na čekanju i zaustavite mjerač vremena.",
+      ],
+  "Sync or discard pending entries and stop the timer before signing out.": [
+    "Pred odjavo sinhronizirajte ali zavrzite čakajoče vnose in ustavite časovnik.",
+    "Prije odjave sinkronizirajte ili odbacite unose na čekanju i zaustavite mjerač vremena.",
+  ],
+  "Templates": ["Predloge", "Predlošci"],
+  "The local change will be removed. A change already received by the server is kept there.":
+      [
+        "Lokalna sprememba bo odstranjena. Sprememba, ki jo je strežnik že prejel, ostane tam.",
+        "Lokalna promjena bit će uklonjena. Promjena koju je poslužitelj već primio ostaje na njemu.",
+      ],
+  "The timer keeps its start time when you close the app. Review whole minutes before saving.":
+      [
+        "Časovnik ohrani začetni čas, ko zaprete aplikacijo. Pred shranjevanjem preverite cele minute.",
+        "Mjerač pamti početno vrijeme kada zatvorite aplikaciju. Prije spremanja provjerite cijele minute.",
+      ],
+  "This month is not fully cached. Connect to load all entries.": [
+    "Ta mesec ni v celoti shranjen v napravi. Povežite se, da naložite vse vnose.",
+    "Ovaj mjesec nije u cijelosti spremljen na uređaju. Povežite se da biste učitali sve unose.",
+  ],
+  "This permanently deletes your account and personal records. Transfer shared projects first. Type DELETE to confirm.":
+      [
+        "To trajno izbriše vaš račun in osebne zapise. Najprej prenesite lastništvo skupnih projektov. Za potrditev vnesite DELETE.",
+        "Ovo trajno briše vaš račun i osobne zapise. Prvo prenesite vlasništvo zajedničkih projekata. Za potvrdu upišite DELETE.",
+      ],
+  "This timer exceeds 24 hours. Record it as separate entries before discarding the timer.":
+      [
+        "Časovnik je presegel 24 ur. Preden ga zavržete, čas zabeležite v ločenih vnosih.",
+        "Mjerač je premašio 24 sata. Prije odbacivanja zabilježite vrijeme u zasebnim unosima.",
+      ],
+  "Timer on this device": [
+    "Časovnik v tej napravi",
+    "Mjerač vremena na ovom uređaju",
+  ],
+  "Transfer ownership": ["Prenesi lastništvo", "Prenesi vlasništvo"],
+  "Try again in {seconds}s": [
+    "Poskusite znova čez {seconds}s",
+    "Pokušajte ponovno za {seconds}s",
+  ],
+  "Type DELETE": ["Vnesite DELETE", "Upišite DELETE"],
+  "Week": ["Teden", "Tjedan"],
+  "Weekly goal": ["Tedenski cilj", "Tjedni cilj"],
+  "Weekly goals must be between 0 and 10080 minutes.": [
+    "Tedenski cilj mora biti med 0 in 10080 minutami.",
+    "Tjedni cilj mora biti između 0 i 10080 minuta.",
+  ],
+  "Weekly goal in minutes (0 disables it)": [
+    "Tedenski cilj v minutah (0 ga izklopi)",
+    "Tjedni cilj u minutama (0 ga isključuje)",
+  ],
+  "Template name": ["Ime predloge", "Naziv predloška"],
+  "Change password": ["Spremeni geslo", "Promijeni lozinku"],
+  "Regenerate recovery codes": [
+    "Ustvari nove obnovitvene kode",
+    "Stvori nove kodove za oporavak",
+  ],
+  "Replace authenticator": [
+    "Zamenjaj aplikacijo za preverjanje pristnosti",
+    "Zamijeni aplikaciju za autentifikaciju",
+  ],
+  "Delete account": ["Izbriši račun", "Izbriši račun"],
+  "Password changed. Other sessions must sign in again.": [
+    "Geslo je spremenjeno. V drugih sejah je potrebna ponovna prijava.",
+    "Lozinka je promijenjena. Druge sesije zahtijevaju ponovnu prijavu.",
+  ],
+  "Password reset. Sign in with your new password.": [
+    "Geslo je ponastavljeno. Prijavite se z novim geslom.",
+    "Lozinka je ponovno postavljena. Prijavite se novom lozinkom.",
+  ],
+  "Syncing…": ["Sinhronizacija …", "Sinkronizacija…"],
+  "Offline · showing saved data": [
+    "Brez povezave · prikaz shranjenih podatkov",
+    "Izvan mreže · prikaz spremljenih podataka",
+  ],
+  "Pending changes": ["Čakajoče spremembe", "Promjene na čekanju"],
+  "Waiting to sync": ["Čaka na sinhronizacijo", "Čeka sinkronizaciju"],
+  "File ready to share.": [
+    "Datoteka je pripravljena za skupno rabo.",
+    "Datoteka je spremna za dijeljenje.",
+  ],
+  "owner": ["lastnik", "vlasnik"],
+  "member": ["član", "član"],
+  "history": ["zgodovina", "povijest"],
+  "Choose a date range of at most 93 days.": [
+    "Izberite obdobje največ 93 dni.",
+    "Odaberite razdoblje od najviše 93 dana.",
+  ],
+  "This offline operation has different content. Review it before retrying.": [
+    "To dejanje brez povezave ima drugačno vsebino. Pred ponovnim poskusom ga preglejte.",
+    "Ova izvanmrežna radnja ima drukčiji sadržaj. Pregledajte je prije ponovnog pokušaja.",
+  ],
+  "This entry was already deleted on the server.": [
+    "Ta vnos je bil na strežniku že izbrisan.",
+    "Ovaj unos već je izbrisan na poslužitelju.",
+  ],
+  "This entry changed on another device. Reload it before saving.": [
+    "Ta vnos se je spremenil v drugi napravi. Pred shranjevanjem ga znova naložite.",
+    "Ovaj unos promijenjen je na drugom uređaju. Ponovno ga učitajte prije spremanja.",
+  ],
+  "Shared projects cannot become personal activities.": [
+    "Skupni projekti ne morejo postati osebne dejavnosti.",
+    "Zajednički projekti ne mogu postati osobne aktivnosti.",
+  ],
+  "Give the template a name and a duration from 1 to 1440 minutes.": [
+    "Predlogi določite ime in trajanje od 1 do 1440 minut.",
+    "Predlošku odredite naziv i trajanje od 1 do 1440 minuta.",
+  ],
+  "You no longer have access to this shared project.": [
+    "Nimate več dostopa do tega skupnega projekta.",
+    "Više nemate pristup ovom zajedničkom projektu.",
+  ],
+  "Transfer ownership before leaving this project.": [
+    "Pred odhodom iz projekta prenesite lastništvo.",
+    "Prije napuštanja projekta prenesite vlasništvo.",
+  ],
+  "Only the project owner can manage members.": [
+    "Člane lahko upravlja le lastnik projekta.",
+    "Članovima može upravljati samo vlasnik projekta.",
+  ],
+  "This person already belongs to the project.": [
+    "Ta oseba je že član projekta.",
+    "Ova osoba već je član projekta.",
+  ],
+  "Too many invitations. Please try again later.": [
+    "Preveč povabil. Poskusite pozneje.",
+    "Previše pozivnica. Pokušajte kasnije.",
+  ],
+  "Invitation to a Fray project": [
+    "Povabilo v projekt Fray",
+    "Pozivnica za projekt Fray",
+  ],
+  "You have been invited to %(project)s. Sign in to Fray with this email address and open Projects → Invitations. Your individual entries and notes stay private. This invitation expires in seven days.":
+      [
+        "Povabljeni ste v projekt %(project)s. S tem e-poštnim naslovom se prijavite v Fray in odprite Projekti → Povabila. Vaši posamezni vnosi in opombe ostanejo zasebni. Povabilo poteče čez sedem dni.",
+        "Pozvani ste u projekt %(project)s. Prijavite se u Fray ovom adresom e-pošte i otvorite Projekti → Pozivnice. Vaši pojedinačni unosi i bilješke ostaju privatni. Pozivnica istječe za sedam dana.",
+      ],
+  "This project is no longer available.": [
+    "Ta projekt ni več na voljo.",
+    "Ovaj projekt više nije dostupan.",
+  ],
+  "If this account exists, a reset code has been sent. Check your spam folder too.":
+      [
+        "Če račun obstaja, je bila poslana koda za ponastavitev. Preverite tudi neželeno pošto.",
+        "Ako račun postoji, poslan je kod za ponovno postavljanje. Provjerite i neželjenu poštu.",
+      ],
+  "Reset your Fray password": [
+    "Ponastavite geslo za Fray",
+    "Ponovno postavite lozinku za Fray",
+  ],
+  "Your password reset code is: %(code)s\n\nIt expires in 10 minutes. Your authenticator or a recovery code is also required. If you did not request this, ignore this email.":
+      [
+        "Vaša koda za ponastavitev gesla je: %(code)s\n\nPoteče čez 10 minut. Potrebujete tudi kodo iz aplikacije za preverjanje pristnosti ali obnovitveno kodo. Če tega niste zahtevali, prezrite to e-pošto.",
+        "Vaš kod za ponovno postavljanje lozinke je: %(code)s\n\nIstječe za 10 minuta. Potreban je i kod iz aplikacije za autentifikaciju ili kod za oporavak. Ako ovo niste zatražili, zanemarite ovu poruku.",
+      ],
+  "Password reset expired. Request a new code.": [
+    "Ponastavitev gesla je potekla. Zahtevajte novo kodo.",
+    "Ponovno postavljanje lozinke je isteklo. Zatražite novi kod.",
+  ],
+  "The reset code or security code is incorrect.": [
+    "Koda za ponastavitev ali varnostna koda je napačna.",
+    "Kod za ponovno postavljanje ili sigurnosni kod nije točan.",
+  ],
+  "Type DELETE to confirm account deletion.": [
+    "Za potrditev izbrisa računa vnesite DELETE.",
+    "Za potvrdu brisanja računa upišite DELETE.",
+  ],
+  "Transfer ownership of shared projects before deleting your account.": [
+    "Pred brisanjem računa prenesite lastništvo skupnih projektov.",
+    "Prije brisanja računa prenesite vlasništvo zajedničkih projekata.",
+  ],
+  "Password or security code is incorrect.": [
+    "Geslo ali varnostna koda je napačna.",
+    "Lozinka ili sigurnosni kod nije točan.",
+  ],
+  "Authenticator setup expired. Start again.": [
+    "Nastavitev aplikacije za preverjanje pristnosti je potekla. Začnite znova.",
+    "Postavljanje aplikacije za autentifikaciju je isteklo. Počnite ponovno.",
+  ],
+  "Verify your email through password reset before accepting invitations.": [
+    "Pred sprejemanjem povabil potrdite e-poštni naslov s ponastavitvijo gesla.",
+    "Prije prihvaćanja pozivnica potvrdite adresu e-pošte ponovnim postavljanjem lozinke.",
+  ],
+  "Only you can access your individual entries, notes, and personal reports.": ["Samo vi lahko dostopate do svojih posameznih vnosov, opomb in osebnih poročil.", "Samo vi možete pristupiti svojim pojedinačnim unosima, bilješkama i osobnim izvještajima."],
+  "Remove this member?": ["Odstrani tega člana?", "Ukloniti ovog člana?"],
+  "Transfer ownership to this member?": ["Prenesi lastništvo na tega člana?", "Prenijeti vlasništvo na ovog člana?"],
+  "Leave this project?": ["Zapusti ta projekt?", "Napustiti ovaj projekt?"],
 };

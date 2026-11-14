@@ -131,7 +131,7 @@ def begin_login(request, data):
     email = field(data, 'email', 254).strip().lower()
     password = field(data, 'password', 1024)
     if limited('login', email, 10, 300):
-        return error(_('Too many attempts. Wait five minutes.'), 429)
+        return rate_error('login', email, 300, _('Too many attempts. Wait five minutes.'))
     user = authenticate(request, username=email, password=password)
     if not user or not Authenticator.objects.filter(user=user, confirmed=True).exists():
         return error(_('Email or password is incorrect.'), 401)
@@ -165,7 +165,7 @@ def verify_login(request, data):
         if not challenge or challenge.stage != 'mfa':
             return error(_('Sign-in expired. Enter your email and password again.'), 401)
         if limited('mfa', challenge.email, 10, 300):
-            return error(_('Too many attempts. Wait five minutes.'), 429)
+            return rate_error('mfa', challenge.email, 300, _('Too many attempts. Wait five minutes.'))
         user = get_user_model().objects.select_for_update().get(pk=challenge.user_id)
         if not user.is_active or not constant_time_compare(challenge.password_hash, user.get_session_auth_hash()):
             discard(request)
@@ -244,7 +244,7 @@ def verify_email(request, data):
         if not challenge or challenge.stage != 'email':
             return error(_('Verification expired. Start creating your account again.'), 401)
         if limited('email-verify', challenge.email, 10, 600):
-            return error(_('Too many attempts. Please try again later.'), 429)
+            return rate_error('email-verify', challenge.email, 600, _('Too many attempts. Please try again later.'))
         challenge.attempts += 1
         challenge.save(update_fields=['attempts'])
         if not constant_time_compare(email_code_hash(challenge, code), challenge.email_code_hash):
@@ -302,7 +302,7 @@ def finish_signup(request, data):
             if not challenge or challenge.stage != 'enroll' or not challenge.email_verified_at:
                 return error(_('Setup expired. Start creating your account again.'), 401)
             if limited('signup-totp', challenge.email, 10, 600):
-                return error(_('Too many attempts. Please try again later.'), 429)
+                return rate_error('signup-totp', challenge.email, 600, _('Too many attempts. Please try again later.'))
             challenge.attempts += 1
             challenge.save(update_fields=['attempts'])
             key = Fernet(settings.MFA_ENCRYPTION_KEY.encode()).decrypt(bytes(challenge.encrypted_key))

@@ -27,9 +27,9 @@ Flutter and the API share a small JSON contract; no deployment URL is hardcoded 
 - `Authenticator` extends django-otp's device and throttling primitives. Fernet encrypts its 20-byte seed. The TOTP verifier accepts a ±1 time-step clock window and remembers the consumed counter to prevent replay.
 - `RecoveryCode` contains an Argon2 password hash and is removed after use. Login consumption locks the user and device rows in PostgreSQL.
 
-Every API lookup for an item/entry includes the requesting owner/author. Creation checks ownership of the referenced item; reports filter before aggregating. There is no team endpoint or membership assumption. Database mode/duration constraints are defense in depth; author/item consistency is checked by the API and must be preserved in future import/admin code.
+Entry lookups and personal reports always filter by author. Item visibility permits the owner, current project members and authors retaining historical entries. Creation checks current ownership/membership; only owners edit item metadata. Shared endpoints expose monthly totals and member names, never individual entries/notes. Database mode/duration constraints are defense in depth; author/item consistency is checked by the API and must be preserved in future import/admin code.
 
-Timed creation locks the author before checking overlaps and inserting. PostgreSQL supplies row locking for concurrent writers; SQLite development mode does not establish the production concurrency guarantee. PostgreSQL concurrency tests are future work.
+Timed creation locks the author before checking overlaps and inserting. PostgreSQL supplies row locking for concurrent writers; SQLite development mode does not establish the production concurrency guarantee. Targeted PostgreSQL race tests cover login challenge consumption, idempotent creation and revision conflicts; broader load testing remains future work.
 
 Archives remain in historical reports. Archiving blocks new entries and edits to entries on that item until it is unarchived; deletion of one's historical entry remains allowed. Items themselves are not deleted through the API.
 
@@ -39,7 +39,7 @@ Self-service signup uses a short-lived `AuthChallenge` bound to the anonymous Dj
 
 Returning users receive an anonymous ten-minute challenge after correct email/password, then submit their authenticator or recovery code. A full Django/OTP session is created only after the second step succeeds. The challenge retains a password-auth hash so a password change or account disablement invalidates it. Challenges are locked and consumed transactionally to prevent reuse; each allows five code attempts. Shared cache limits also apply across challenge restarts. Sensitive responses are never cached. Cancel/logout remove pending challenges; `clear_auth_challenges` prunes expired records, including abandoned registration data.
 
-`create_fray_user` remains an administrative enrollment path and does not claim verified email ownership. Existing accounts continue to work. The combined login endpoint is retained for old APK compatibility. Self-service MFA rotation, password reset, and account deletion are not implemented.
+`create_fray_user` remains an administrative enrollment path and does not claim verified email ownership. Existing accounts continue to work. The combined login endpoint is retained for old APK compatibility. Self-service MFA rotation, password reset and account deletion require fresh proof; see [account security and offline design](app-features.md).
 
 Login requires both a valid password and a TOTP/recovery code. Django hashes passwords with Argon2. Accounts receive a 10-attempt/5-minute cache limit, plus django-otp device throttling. Production uses shared Redis; the development cache is in-process and resets on restart. Cloudflare per-client limits should supplement this account limit for the tunnel deployment to address distributed/account-targeted abuse.
 
@@ -65,13 +65,20 @@ Paths have no trailing slash. Writes use JSON and `X-CSRFToken`. Responses are J
 | POST | `/api/auth/signup/finish` | Verify authenticator `{code}`; create account/session and return recovery codes once |
 | POST | `/api/auth/logout` | Destroy current session |
 | GET | `/api/auth/me` | Current MFA-verified identity |
-| GET / POST | `/api/items` | Own items / create item |
+| GET / POST | `/api/items` | Visible items / create owned item |
 | PATCH | `/api/items/:uuid` | Edit metadata, pin, or archive own item |
 | GET | `/api/entries?month=YYYY-MM` | Own entries within the month |
 | POST | `/api/entries` | Create a validated entry |
 | PATCH / DELETE | `/api/entries/:uuid` | Replace entry fields / delete own entry |
 | GET | `/api/reports/monthly?month=YYYY-MM` | Own totals grouped by item |
 | GET | `/api/reports/monthly?month=YYYY-MM&format=csv` | Summary CSV, minutes, no notes |
+| POST | `/api/auth/password/request`, `/api/auth/password/reset` | Email + MFA password reset |
+| POST | `/api/account/password`, `/api/account/recovery`, `/api/account/rotate`, `/api/account/delete` | Fresh password + MFA for sensitive actions |
+| POST | `/api/account/authenticator/finish` | Confirm replacement device; replace recovery codes |
+| GET / POST / DELETE | `/api/templates` or `/api/templates/:uuid` | Personal reusable entry templates |
+| GET / PATCH | `/api/preferences` | Personal weekly goal minutes |
+| GET / POST / DELETE | `/api/projects/:uuid` | Aggregate/member view, owner membership actions, member leave |
+| GET / POST | `/api/invitations` | Own-email inbox and accept/decline |
 | GET | `/api/health` | Database and cache readiness; 503 when unavailable |
 | GET | `/metrics` | Prometheus counters/histograms; restrict to monitoring in deployment |
 
@@ -95,16 +102,22 @@ Timed entry:
 
 The server calculates timed duration; submitted `minutes` is ignored in timed mode. Timestamp offsets are mandatory. The date must match the start in the supplied timezone. Overlap errors return 409; duration/shape errors return 400. Unknown or inaccessible UUIDs return 404. Unauthorized sessions return 401, missing CSRF returns 403, and login throttling returns 429.
 
-CSV escapes spreadsheet formulas in item names. Reports include archived work, never another user's entries, and never notes in this first release.
+CSV escapes spreadsheet formulas in item names. Personal reports include archived work and never another user's entries. CSV excludes notes; client-generated detailed PDFs can include them only by explicit selection.
 
 ## Observability
 
 `fray_http_requests_total{route,method,status}` and `fray_http_request_seconds{route}` use bounded route templates rather than item UUIDs. The library also exposes process metrics. Metrics do not label users, notes, email addresses, or secrets. The current registry is per process: use **one Gunicorn worker with threads** initially, or implement Prometheus multiprocess aggregation before scaling to multiple workers. Do not assume the current counters aggregate across processes.
 
-Health checks confirm database access and a cache round trip. Audit logs record authentication outcomes and item/entry writes by opaque ID; there is no permanent database audit-history UI yet. The local launcher prints logs to the terminal. The Docker deployment supplies rotated container logs, Prometheus scraping, readiness gauges, and alert rules. Alert delivery and optional Grafana/host dashboards remain to be configured. See [the Docker guide](../infra/docker/README.md).
+Health checks confirm database access and a cache round trip. Audit logs record authentication outcomes and item/entry writes by opaque ID; there is no permanent database audit-history UI yet. The local launcher prints logs to the terminal. The Docker deployment supplies rotated container logs, Prometheus scraping, readiness gauges, and alert rules. Grafana dashboards and rules are provisioned; email notifications require an operator recipient and SMTP credentials. Host-level monitoring remains separate. See [the Docker guide](../infra/docker/README.md).
 
 ## References
 
 - [Django deployment checklist](https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/)
 - [django-otp authentication](https://django-otp-official.readthedocs.io/en/stable/auth.html)
 - [django-otp device extension and throttling](https://django-otp-official.readthedocs.io/en/stable/extend.html)
+
+## Durable client changes
+
+`TimeEntry.revision` supports optimistic edit/delete checks. `EntryReceipt` binds a user/operation UUID to the exact request fingerprint and nullable entry reference; deletion keeps the receipt. The server locks the author and commits receipt+entry atomically. See [the offline contract](app-features.md#offline-data-and-conflict-handling) for retry, conflict, account isolation and older-client behavior. API range reads accept `from`/`to` with an exclusive end and a maximum 93-day span.
+
+`EntryTemplate` belongs to a user. `AccountProfile` holds the goal and nullable email-verification date. `ProjectMember` and `ProjectInvitation` have per-project uniqueness constraints; invitation acceptance matches the authenticated, verified email and expiry, with project locking during membership changes.

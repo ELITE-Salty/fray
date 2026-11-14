@@ -1,5 +1,13 @@
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'tracking_features.dart';
+import 'account_security.dart';
+import 'project_sharing.dart';
+import 'report_export.dart';
 import '../l10n/localization.dart';
 import 'preferences.dart';
+import 'workspace_storage.dart';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -25,7 +33,8 @@ class FrayApp extends StatefulWidget {
 class _FrayAppState extends State<FrayApp> with WidgetsBindingObserver {
   late final AppPreferences preferences =
       widget.preferences ?? AppPreferences();
-  late final FrayStore store = widget.store ?? FrayStore();
+  late final FrayStore store =
+      widget.store ?? FrayStore(storage: SecureWorkspaceStorage());
   @override
   void initState() {
     super.initState();
@@ -181,8 +190,11 @@ class Workspace extends StatefulWidget {
   State<Workspace> createState() => _WorkspaceState();
 }
 
-class _WorkspaceState extends State<Workspace> with LocalizedState {
+class _WorkspaceState extends State<Workspace>
+    with LocalizedState, WidgetsBindingObserver {
+  Timer? retrySync;
   int tab = 0;
+  String calendarView = 'month';
   late DateTime selected = DateUtils.dateOnly(store.clock.now());
   late DateTime month = DateTime(selected.year, selected.month);
   String search = '', filter = 'All';
@@ -207,7 +219,30 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    retrySync = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!loading &&
+          !store.syncing &&
+          !store.needsLogin &&
+          (store.offline || store.queue.isNotEmpty)) {
+        load();
+      }
+    });
     load();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !loading && !store.syncing) {
+      load();
+    }
+  }
+
+  @override
+  void dispose() {
+    retrySync?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> load() async {
@@ -251,7 +286,7 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
   }
 
   Future<void> editEntry([TimeRecord? entry]) async {
-    if (!store.items.any((i) => !i.archived)) {
+    if (!store.items.any((i) => i.canLog)) {
       message(tr('Create a project or activity first.'));
       await editItem();
       return;
@@ -403,6 +438,21 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
                                 ),
                                 const SizedBox(height: 20),
                               ],
+                              if (store.offline ||
+                                  store.queue.isNotEmpty ||
+                                  store.syncing ||
+                                  store.syncError != null)
+                                SyncPanel(store: store, reload: load),
+                              if (store.offline &&
+                                  !store.cachedMonths.contains(monthKey(month)))
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Text(
+                                    tr(
+                                      'This month is not fully cached. Connect to load all entries.',
+                                    ),
+                                  ),
+                                ),
                               heading(wide),
                               const SizedBox(height: 26),
                               switch (tab) {
@@ -483,7 +533,10 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
                 borderRadius: BorderRadius.circular(12),
                 onTap: () => setState(() => tab = i),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
                   child: Row(
                     children: [
                       Icon(
@@ -524,7 +577,10 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
               const SizedBox(height: 12),
               Text(
                 tr('Make room for focus.'),
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 7),
               Text(
@@ -707,10 +763,61 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
   );
 
   Widget calendarPage(bool wide) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       stats(),
-      const SizedBox(height: 24),
-      if (wide)
+      const SizedBox(height: 20),
+      panel(TimerPanel(store: store)),
+      const SizedBox(height: 20),
+      panel(GoalPanel(store: store, day: selected)),
+      const SizedBox(height: 20),
+      Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: [
+          SegmentedButton<String>(
+            segments: [
+              ButtonSegment(value: 'month', label: Text(tr('Month'))),
+              ButtonSegment(value: 'week', label: Text(tr('Week'))),
+              ButtonSegment(value: 'day', label: Text(tr('Day'))),
+            ],
+            selected: {calendarView},
+            onSelectionChanged: (v) => setState(() => calendarView = v.first),
+          ),
+          OutlinedButton.icon(
+            onPressed: chooseTemplate,
+            icon: const Icon(Icons.bookmarks_outlined),
+            label: Text(tr('Templates')),
+          ),
+        ],
+      ),
+      const SizedBox(height: 20),
+      if (calendarView != 'month') ...[
+        Row(
+          children: [
+            IconButton(
+              tooltip: tr('Previous'),
+              onPressed: () => moveDay(calendarView == 'week' ? -7 : -1),
+              icon: const Icon(Icons.chevron_left),
+            ),
+            Expanded(
+              child: Text(
+                DateFormat.yMMMMd(locale).format(selected),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            IconButton(
+              tooltip: tr('Next'),
+              onPressed: () => moveDay(calendarView == 'week' ? 7 : 1),
+              icon: const Icon(Icons.chevron_right),
+            ),
+          ],
+        ),
+        if (calendarView == 'week') weekCalendar(wide),
+        if (calendarView == 'day') dayTimeline(),
+        const SizedBox(height: 20),
+        dayPanel(),
+      ] else if (wide)
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -726,6 +833,265 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
       ],
     ],
   );
+
+  void moveDay(int offset) {
+    final next = DateTime(selected.year, selected.month, selected.day + offset);
+    final changed = next.month != month.month || next.year != month.year;
+    setState(() {
+      selected = next;
+      month = DateTime(next.year, next.month);
+    });
+    if (changed) load();
+  }
+
+  Widget weekCalendar(bool wide) {
+    final offset = (selected.weekday % 7 - firstWeekday + 7) % 7;
+    final start = DateTime(
+      selected.year,
+      selected.month,
+      selected.day - offset,
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = wide ? 7 : 1;
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: List.generate(7, (index) {
+            final day = DateTime(start.year, start.month, start.day + index),
+                rows = store.onDay(
+                  DateTime(start.year, start.month, start.day + index),
+                );
+            return SizedBox(
+              width: (constraints.maxWidth - (columns - 1) * 8) / columns,
+              child: Card(
+                color: dayKey(day) == dayKey(selected)
+                    ? lavender
+                    : context.surface,
+                child: InkWell(
+                  onTap: () => setState(() => selected = day),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          DateFormat.MMMEd(locale).format(day),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        Text(
+                          context.duration(
+                            rows.fold(0, (s, e) => s + e.minutes),
+                          ),
+                        ),
+                        ...rows
+                            .take(3)
+                            .map(
+                              (entry) => Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.circle,
+                                      size: 8,
+                                      color: store.item(entry.itemId).color,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        store.item(entry.itemId).name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+
+  Widget dayTimeline() => panel(
+    LayoutBuilder(
+      builder: (context, constraints) {
+        final rows = store
+            .onDay(selected)
+            .where((e) => e.mode == 'timed')
+            .toList();
+        return SizedBox(
+          height: 24 * 44,
+          child: Stack(
+            children: [
+              for (int hour = 0; hour < 24; hour++)
+                Positioned(
+                  top: hour * 44,
+                  left: 0,
+                  right: 0,
+                  height: 44,
+                  child: InkWell(
+                    onTap: () {
+                      if (!store.items.any((i) => i.canLog)) {
+                        editEntry();
+                        return;
+                      }
+                      showDialog<void>(
+                        context: context,
+                        builder: (_) => EntryEditor(
+                          store: store,
+                          day: selected,
+                          initialStart: TimeOfDay(hour: hour, minute: 0),
+                        ),
+                      );
+                    },
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 66,
+                          child: Text(
+                            TimeOfDay(hour: hour, minute: 0).format(context),
+                            style: TextStyle(fontSize: 10, color: muted),
+                          ),
+                        ),
+                        const Expanded(child: Divider(height: 1)),
+                      ],
+                    ),
+                  ),
+                ),
+              ...rows.map((entry) {
+                final clock = TimeContext(entry.timezone),
+                    item = store.item(entry.itemId);
+                final start = clock.local(entry.start!);
+                final top = (start.hour * 60 + start.minute) / 60 * 44;
+                final height = math.min(
+                  24 * 44 - top,
+                  math.max(22.0, entry.minutes / 60 * 44),
+                );
+                return Positioned(
+                  top: top,
+                  left: 70,
+                  right: 0,
+                  height: height,
+                  child: Material(
+                    color: item.color.withValues(alpha: .2),
+                    borderRadius: BorderRadius.circular(8),
+                    child: InkWell(
+                      onTap: () => editEntry(entry),
+                      child: Padding(
+                        padding: const EdgeInsets.all(5),
+                        child: Text(
+                          '${item.name} · ${entry.timeLabel(context)}',
+                          maxLines: height < 45 ? 1 : 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: context.accent(item.color),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+
+  Future<void> chooseTemplate() async {
+    final template = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(tr('Templates')),
+        content: SizedBox(
+          width: 420,
+          child: ListenableBuilder(
+            listenable: store,
+            builder: (context, _) => ListView(
+              shrinkWrap: true,
+              children: [
+                if (store.templates.isEmpty)
+                  Text(tr('Save an entry as a template from its menu.')),
+                for (final template in store.templates)
+                  ListTile(
+                    title: Text(template['name']),
+                    subtitle: Text(context.duration(template['minutes'])),
+                    onTap:
+                        store.items.any(
+                          (i) => i.id == template['item_id'] && i.canLog,
+                        )
+                        ? () => Navigator.pop(context, template)
+                        : null,
+                    trailing: IconButton(
+                      tooltip: tr('Delete template'),
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () =>
+                          action(() => store.deleteTemplate(template['id'])),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(tr('Done')),
+          ),
+        ],
+      ),
+    );
+    if (template == null || !mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => EntryEditor(
+        store: store,
+        day: selected,
+        duplicate: true,
+        entry: TimeRecord({
+          ...template,
+          'id': '',
+          'date': dayKey(selected),
+          'timezone': store.clock.zone,
+          'mode': 'duration',
+        }),
+      ),
+    );
+  }
+
+  Future<void> entryAction(String actionName, TimeRecord entry) async {
+    if (actionName == 'duplicate') {
+      await showDialog<void>(
+        context: context,
+        builder: (_) => EntryEditor(
+          store: store,
+          day: selected,
+          entry: entry,
+          duplicate: true,
+        ),
+      );
+    } else {
+      final name = await askText(
+        context,
+        'Template name',
+        initial: store.item(entry.itemId).name,
+      );
+      if (name != null && name.trim().isNotEmpty) {
+        await action(() => store.addTemplate(name.trim(), entry));
+      }
+    }
+  }
 
   Widget calendar() => panel(
     Column(
@@ -834,7 +1200,10 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
                               : line.withValues(alpha: .5),
                         ),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 3,
+                        vertical: 8,
+                      ),
                       child: Column(
                         children: [
                           Text(
@@ -1035,6 +1404,28 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
                       ),
                     ),
                     const SizedBox(width: 8),
+                    if (store.isPending(entry.id))
+                      Tooltip(
+                        message: tr('Pending sync'),
+                        child: const Icon(
+                          Icons.cloud_upload_outlined,
+                          size: 16,
+                        ),
+                      ),
+                    PopupMenuButton<String>(
+                      tooltip: tr('Entry actions'),
+                      onSelected: (value) => entryAction(value, entry),
+                      itemBuilder: (_) => [
+                        PopupMenuItem(
+                          value: 'duplicate',
+                          child: Text(tr('Duplicate entry')),
+                        ),
+                        PopupMenuItem(
+                          value: 'template',
+                          child: Text(tr('Save as template')),
+                        ),
+                      ],
+                    ),
                     Text(
                       context.duration(entry.minutes),
                       style: TextStyle(
@@ -1096,6 +1487,12 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
     );
   }
 
+  Future<void> showSharing([WorkItem? item]) => showDialog<void>(
+    context: context,
+    builder: (_) =>
+        ProjectSharingDialog(store: store, month: month, item: item),
+  );
+
   Widget projectsPage() {
     final items =
         store.items
@@ -1116,6 +1513,15 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: OutlinedButton.icon(
+            onPressed: () => showSharing(),
+            icon: const Icon(Icons.mail_outline),
+            label: Text(tr('Invitations')),
+          ),
+        ),
+        const SizedBox(height: 12),
         TextField(
           onChanged: (v) => setState(() => search = v),
           decoration: InputDecoration(
@@ -1173,7 +1579,11 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
                   const SizedBox(width: 16),
                   Expanded(
                     child: InkWell(
-                      onTap: () => editItem(item),
+                      onTap: item.role == 'owner'
+                          ? () => editItem(item)
+                          : item.kind == 'project' && item.role != 'history'
+                          ? () => showSharing(item)
+                          : null,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1196,44 +1606,52 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
                       ),
                     ),
                   ),
-                  IconButton(
-                    tooltip: item.pinned ? tr('Unpin') : tr('Pin'),
-                    onPressed: () => action(
-                      () => store.saveItem({
-                        ...item.toJson(),
-                        'pinned': !item.pinned,
-                      }, item.id),
+                  if (item.kind == 'project' && item.role != 'history')
+                    IconButton(
+                      tooltip: tr('Sharing and members'),
+                      icon: const Icon(Icons.group_outlined),
+                      onPressed: () => showSharing(item),
                     ),
-                    icon: Icon(
-                      item.pinned
-                          ? Icons.star_rounded
-                          : Icons.star_border_rounded,
-                      color: item.pinned ? purple : muted,
-                    ),
-                  ),
-                  PopupMenuButton<String>(
-                    onSelected: (v) {
-                      if (v == 'edit') {
-                        editItem(item);
-                      } else {
-                        action(
-                          () => store.saveItem({
-                            ...item.toJson(),
-                            'archived': !item.archived,
-                          }, item.id),
-                        );
-                      }
-                    },
-                    itemBuilder: (_) => [
-                      PopupMenuItem(value: 'edit', child: Text(tr('Edit'))),
-                      PopupMenuItem(
-                        value: 'archive',
-                        child: Text(
-                          item.archived ? tr('Unarchive') : tr('Archive'),
-                        ),
+                  if (item.role == 'owner')
+                    IconButton(
+                      tooltip: item.pinned ? tr('Unpin') : tr('Pin'),
+                      onPressed: () => action(
+                        () => store.saveItem({
+                          ...item.toJson(),
+                          'pinned': !item.pinned,
+                        }, item.id),
                       ),
-                    ],
-                  ),
+                      icon: Icon(
+                        item.pinned
+                            ? Icons.star_rounded
+                            : Icons.star_border_rounded,
+                        color: item.pinned ? purple : muted,
+                      ),
+                    ),
+                  if (item.role == 'owner')
+                    PopupMenuButton<String>(
+                      onSelected: (v) {
+                        if (v == 'edit') {
+                          editItem(item);
+                        } else {
+                          action(
+                            () => store.saveItem({
+                              ...item.toJson(),
+                              'archived': !item.archived,
+                            }, item.id),
+                          );
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        PopupMenuItem(value: 'edit', child: Text(tr('Edit'))),
+                        PopupMenuItem(
+                          value: 'archive',
+                          child: Text(
+                            item.archived ? tr('Unarchive') : tr('Archive'),
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
               padding: const EdgeInsets.all(20),
@@ -1249,6 +1667,62 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
       await downloadCsv(await store.csv(month), 'fray-${monthKey(month)}.csv'),
     );
   });
+  Future<void> exportPdf() async {
+    bool detailed = false, notes = false;
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, update) => AlertDialog(
+          title: Text(tr('Export PDF')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CheckboxListTile(
+                title: Text(tr('Include individual entries')),
+                value: detailed,
+                onChanged: (v) => update(() {
+                  detailed = v!;
+                  if (!detailed) notes = false;
+                }),
+              ),
+              CheckboxListTile(
+                title: Text(tr('Include private notes')),
+                value: notes,
+                onChanged: detailed ? (v) => update(() => notes = v!) : null,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(tr('Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(tr('Export PDF')),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (accepted != true || !mounted) return;
+    await action(
+      () async => message(
+        await downloadBytes(
+          await reportPdf(
+            store,
+            month,
+            locale,
+            detailed: detailed,
+            notes: notes,
+          ),
+          'fray-${monthKey(month)}.pdf',
+          'application/pdf',
+        ),
+      ),
+    );
+  }
+
   Widget reportsPage() {
     final rows = store.inMonth(month);
     final totals = <WorkItem, int>{};
@@ -1270,7 +1744,10 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
               const SizedBox(height: 22),
               Text(
                 tr('My time'),
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 7),
               Text(
@@ -1279,6 +1756,14 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
                 ),
                 style: TextStyle(color: muted, fontSize: 12),
               ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: exportPdf,
+                icon: const Icon(Icons.picture_as_pdf_outlined),
+                label: Text(tr('Export PDF')),
+              ),
+              if (store.queue.isNotEmpty)
+                Text(tr('Includes pending local entries.')),
               const SizedBox(height: 30),
               if (sorted.isEmpty)
                 Padding(
@@ -1299,7 +1784,9 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
                           Expanded(
                             child: Text(
                               row.key.name,
-                              style: const TextStyle(fontWeight: FontWeight.w500),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                           Text(
@@ -1390,7 +1877,7 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
           title: Text(tr('Private time records')),
           subtitle: Text(
             tr(
-              'Only you can access your projects, entries, notes, and reports.',
+              'Only you can access your individual entries, notes, and personal reports.',
             ),
           ),
         ),
@@ -1412,6 +1899,18 @@ class _WorkspaceState extends State<Workspace> with LocalizedState {
         ),
         const Divider(height: 40),
         const PreferencesPanel(),
+        const SizedBox(height: 20),
+        OutlinedButton.icon(
+          onPressed: store.demo
+              ? null
+              : () => showDialog<void>(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => AccountSecurityDialog(store: store),
+                ),
+          icon: const Icon(Icons.security),
+          label: Text(tr('Account security')),
+        ),
         const SizedBox(height: 20),
         OutlinedButton.icon(
           onPressed: () => action(store.signOut),

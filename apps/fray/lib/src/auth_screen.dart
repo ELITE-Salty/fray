@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../l10n/localization.dart';
 import 'preferences.dart';
 
@@ -10,7 +12,8 @@ import 'data.dart';
 
 class LoginScreen extends StatefulWidget {
   final FrayStore store;
-  const LoginScreen({super.key, required this.store});
+  final VoidCallback? onAuthenticated;
+  const LoginScreen({super.key, required this.store, this.onAuthenticated});
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -20,7 +23,34 @@ class _LoginScreenState extends State<LoginScreen> with LocalizedState {
       password = TextEditingController(),
       name = TextEditingController(),
       confirmation = TextEditingController(),
-      code = TextEditingController();
+      code = TextEditingController(),
+      securityCode = TextEditingController();
+  Timer? countdown;
+  DateTime? retryUntil, resendUntil;
+  int remaining(DateTime? until) => until == null
+      ? 0
+      : (until.difference(DateTime.now()).inMilliseconds / 1000).ceil().clamp(
+          0,
+          3600,
+        );
+  bool get waiting => remaining(retryUntil) > 0;
+  void startCountdown(int seconds, {bool resend = false}) {
+    final until = DateTime.now().add(Duration(seconds: seconds));
+    if (resend) {
+      resendUntil = until;
+    } else {
+      retryUntil = until;
+    }
+    countdown ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {});
+      if (!waiting && remaining(resendUntil) == 0) {
+        countdown?.cancel();
+        countdown = null;
+      }
+    });
+  }
+
   String stage = 'credentials';
   bool signingUp = false, busy = true, savedCodes = false;
   String? error, notice;
@@ -48,11 +78,22 @@ class _LoginScreenState extends State<LoginScreen> with LocalizedState {
     stage = result['stage'] ?? 'credentials';
     if (result['email'] != null) email.text = result['email'];
     code.clear();
+    if (result['resendAfter'] is int) {
+      startCountdown(result['resendAfter'], resend: true);
+    }
   }
 
   @override
   void dispose() {
-    for (final controller in [email, password, name, confirmation, code]) {
+    countdown?.cancel();
+    for (final controller in [
+      email,
+      password,
+      name,
+      confirmation,
+      code,
+      securityCode,
+    ]) {
       controller.dispose();
     }
     challenge.clear();
@@ -69,14 +110,50 @@ class _LoginScreenState extends State<LoginScreen> with LocalizedState {
     try {
       await action();
     } catch (e) {
-      if (mounted) setState(() => error = e.toString());
+      if (mounted) {
+        setState(() {
+          error = e.toString();
+          if (e is ApiException && e.retryAfter > 0) {
+            startCountdown(e.retryAfter);
+          }
+        });
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
   }
 
   Future<void> submit() => perform(() async {
-    if (stage == 'credentials') {
+    if (stage == 'requestReset') {
+      await widget.store.prepareAuth();
+      final result = await widget.store.api(
+        'POST',
+        '/api/auth/password/request',
+        {'email': email.text.trim()},
+      );
+      if (mounted) {
+        setState(() => applyChallenge(Map<String, dynamic>.from(result)));
+      }
+    } else if (stage == 'reset') {
+      if (password.text != confirmation.text) {
+        throw ApiException('The passwords do not match.');
+      }
+      await widget.store.api('POST', '/api/auth/password/reset', {
+        'emailCode': code.text.trim(),
+        'code': securityCode.text.trim(),
+        'newPassword': password.text,
+      });
+      if (mounted) {
+        setState(() {
+          stage = 'credentials';
+          password.clear();
+          confirmation.clear();
+          code.clear();
+          securityCode.clear();
+          notice = 'Password reset. Sign in with your new password.';
+        });
+      }
+    } else if (stage == 'credentials') {
       if (email.text.trim().isEmpty || password.text.isEmpty) {
         throw ApiException(tr('Enter your email and password.'));
       }
@@ -111,7 +188,8 @@ class _LoginScreenState extends State<LoginScreen> with LocalizedState {
           stage = 'recovery';
         });
       } else {
-        widget.store.completeAuth(result);
+        await widget.store.completeAuth(result);
+        widget.onAuthenticated?.call();
       }
     }
   });
@@ -124,11 +202,15 @@ class _LoginScreenState extends State<LoginScreen> with LocalizedState {
         signingUp = false;
         challenge = {};
         code.clear();
+        password.clear();
+        confirmation.clear();
+        securityCode.clear();
       });
     }
   });
 
   String get title => switch (stage) {
+    'requestReset' || 'reset' => tr('Reset password'),
     'email' => tr('Check your email'),
     'enroll' => tr('Protect your account'),
     'mfa' => tr('Enter your security code'),
@@ -140,6 +222,12 @@ class _LoginScreenState extends State<LoginScreen> with LocalizedState {
   };
 
   String get subtitle => switch (stage) {
+    'requestReset' => tr(
+      'Enter your account email to request a password reset code.',
+    ),
+    'reset' => tr(
+      'If this account exists, a reset code has been sent. Use it with your authenticator or a recovery code.',
+    ),
     'email' => tr(
       'Enter the six-digit code sent to {email}. Check your spam folder too.',
       {'email': email.text},
@@ -193,6 +281,38 @@ class _LoginScreenState extends State<LoginScreen> with LocalizedState {
                 style: TextStyle(color: muted, fontSize: 15, height: 1.6),
               ),
               const SizedBox(height: 28),
+              if (stage == 'requestReset')
+                TextField(
+                  controller: email,
+                  enabled: !busy,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(labelText: tr('Email')),
+                ),
+              if (stage == 'reset') ...[
+                TextField(
+                  controller: password,
+                  obscureText: true,
+                  decoration: InputDecoration(labelText: tr('New password')),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: confirmation,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: tr('Confirm password'),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: securityCode,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: InputDecoration(
+                    labelText: tr('Authenticator or recovery code'),
+                  ),
+                ),
+                const SizedBox(height: 14),
+              ],
               if (stage == 'credentials') ...[
                 if (signingUp) ...[
                   TextField(
@@ -291,7 +411,7 @@ class _LoginScreenState extends State<LoginScreen> with LocalizedState {
                 ),
                 const SizedBox(height: 14),
               ],
-              if (['email', 'mfa', 'enroll'].contains(stage))
+              if (['email', 'mfa', 'enroll', 'reset'].contains(stage))
                 TextField(
                   controller: code,
                   enabled: !busy,
@@ -305,7 +425,7 @@ class _LoginScreenState extends State<LoginScreen> with LocalizedState {
                     if (!busy) submit();
                   },
                   decoration: InputDecoration(
-                    labelText: stage == 'email'
+                    labelText: ['email', 'reset'].contains(stage)
                         ? tr('Email verification code')
                         : stage == 'enroll'
                         ? tr('Authenticator code')
@@ -361,17 +481,26 @@ class _LoginScreenState extends State<LoginScreen> with LocalizedState {
                 ),
               const SizedBox(height: 22),
               FilledButton(
-                onPressed: busy
+                onPressed: busy || waiting
                     ? null
                     : stage == 'recovery'
                     ? (savedCodes
-                          ? () => widget.store.completeAuth(completed)
+                          ? () => perform(() async {
+                              await widget.store.completeAuth(completed);
+                              widget.onAuthenticated?.call();
+                            })
                           : null)
                     : submit,
                 child: Text(
-                  busy
+                  waiting
+                      ? tr('Try again in {seconds}s', {
+                          'seconds': remaining(retryUntil),
+                        })
+                      : busy
                       ? tr('Please wait…')
                       : switch (stage) {
+                          'requestReset' => tr('Send reset code'),
+                          'reset' => tr('Reset password'),
                           'email' => tr('Verify email'),
                           'enroll' => tr('Finish setup'),
                           'mfa' => tr('Verify and sign in'),
@@ -382,47 +511,73 @@ class _LoginScreenState extends State<LoginScreen> with LocalizedState {
               ),
               if (stage == 'email')
                 TextButton(
-                  onPressed: busy
+                  onPressed: busy || waiting || remaining(resendUntil) > 0
                       ? null
                       : () => perform(() async {
                           await widget.store.resendEmail();
+                          startCountdown(60, resend: true);
                           if (mounted) {
                             setState(
                               () => notice = 'A new code was sent. Use the most recent email.',
                             );
                           }
                         }),
-                  child: Text(tr('Resend email code')),
+                  child: Text(
+                    remaining(resendUntil) > 0
+                        ? tr('Resend in {seconds}s', {
+                            'seconds': remaining(resendUntil),
+                          })
+                        : tr('Resend email code'),
+                  ),
                 ),
-              if (['email', 'mfa', 'enroll'].contains(stage))
+              if ([
+                'email',
+                'mfa',
+                'enroll',
+                'reset',
+                'requestReset',
+              ].contains(stage))
                 TextButton(
                   onPressed: busy ? null : back,
                   child: Text(tr('Back to sign in')),
                 ),
               if (stage == 'credentials') ...[
-                TextButton(
-                  onPressed: busy
-                      ? null
-                      : () => setState(() {
-                          signingUp = !signingUp;
-                          error = null;
-                          password.clear();
-                          confirmation.clear();
-                        }),
-                  child: Text(
-                    signingUp
-                        ? tr('Already have an account? Sign in')
-                        : tr('Create an account'),
+                if (!signingUp)
+                  TextButton(
+                    onPressed: busy
+                        ? null
+                        : () => setState(() {
+                            stage = 'requestReset';
+                            error = null;
+                            password.clear();
+                          }),
+                    child: Text(tr('Forgot password?')),
                   ),
-                ),
+                if (widget.onAuthenticated == null)
+                  TextButton(
+                    onPressed: busy
+                        ? null
+                        : () => setState(() {
+                            signingUp = !signingUp;
+                            error = null;
+                            password.clear();
+                            confirmation.clear();
+                          }),
+                    child: Text(
+                      signingUp
+                          ? tr('Already have an account? Sign in')
+                          : tr('Create an account'),
+                    ),
+                  ),
                 const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: busy ? null : widget.store.startDemo,
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.all(18),
+                if (widget.onAuthenticated == null)
+                  OutlinedButton(
+                    onPressed: busy ? null : widget.store.startDemo,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.all(18),
+                    ),
+                    child: Text(tr('Explore the demo')),
                   ),
-                  child: Text(tr('Explore the demo')),
-                ),
               ],
               const SizedBox(height: 20),
               Text(

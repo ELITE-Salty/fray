@@ -221,3 +221,45 @@ class FeatureTests(TestCase):
         self.assertEqual(self.item.owner_id, self.other.pk)
         self.assertTrue(ProjectMember.objects.filter(item=self.item, user=self.user).exists())
         self.assertEqual(self.post('/api/projects/' + str(self.item.pk), {'action': 'remove', 'userId': self.other.pk}).status_code, 403)
+
+
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+from unittest import skipUnless
+from django.db import connection, close_old_connections
+from django.test import TransactionTestCase
+from .models import EntryReceipt
+
+
+@skipUnless(connection.vendor == 'postgresql', 'Row locks require PostgreSQL')
+@override_settings(**MAIL_SETTINGS)
+class ConcurrentEntryTests(TransactionTestCase):
+    setUp = TrackingTests.setUp
+    verify_session = TrackingTests.verify_session
+    entry = TrackingTests.entry
+
+    def race(self, method, path, body):
+        cookie = self.client.cookies['sessionid'].value
+        barrier = Barrier(2)
+        def request(_):
+            close_old_connections()
+            try:
+                client = Client()
+                client.cookies['sessionid'] = cookie
+                barrier.wait(timeout=10)
+                response = getattr(client, method)(path, json.dumps(body), content_type='application/json')
+                return response.status_code
+            finally:
+                close_old_connections()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            return sorted(pool.map(request, range(2)))
+
+    def test_concurrent_retries_create_once_and_stale_edits_conflict(self):
+        body = self.entry(operation=str(uuid.uuid4()))
+        self.assertEqual(self.race('post', '/api/entries', body), [200, 201])
+        self.assertEqual(TimeEntry.objects.count(), 1)
+        self.assertEqual(EntryReceipt.objects.count(), 1)
+        entry = TimeEntry.objects.get()
+        self.assertEqual(self.race('patch', '/api/entries/' + str(entry.pk), self.entry(revision=1, notes='Updated')), [200, 409])
+        entry.refresh_from_db()
+        self.assertEqual(entry.revision, 2)

@@ -49,6 +49,12 @@ void main() {
                       'email': 'person@example.test',
                       'csrfToken': 'csrf-after-login',
                     }),
+            '/api/auth/me' => response({
+              'name': 'Person',
+              'email': 'person@example.test',
+            }),
+            '/api/templates' => response({'templates': []}),
+            '/api/preferences' => response({'weeklyGoalMinutes': 0}),
             '/api/items' => response({'items': []}),
             '/api/entries' => response({'entries': []}),
             _ => response({}),
@@ -123,6 +129,15 @@ void main() {
                   (i) => 'test-recovery-code-$i',
                 ),
               });
+            case '/api/auth/me':
+              return response({
+                'name': 'New Person',
+                'email': 'new@example.test',
+              });
+            case '/api/templates':
+              return response({'templates': []});
+            case '/api/preferences':
+              return response({'weeklyGoalMinutes': 0});
             case '/api/items':
               return response({'items': []});
             case '/api/entries':

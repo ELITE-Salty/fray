@@ -62,8 +62,19 @@ try {
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export CSV', exact: true }).click();
   if (!(await download).suggestedFilename().endsWith('.csv')) throw new Error('CSV was not downloaded');
+  await page.getByRole('button', { name: 'Export PDF', exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Include individual entries' }).click();
+  const pdf = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export PDF', exact: true }).last().click();
+  if (!(await pdf).suggestedFilename().endsWith('.pdf')) throw new Error('PDF was not downloaded');
   await page.getByRole('button', { name: 'Calendar', exact: true }).click();
-  await page.locator('span').filter({ hasText: /^CSV download started\.$/ }).waitFor({ state: 'hidden' });
+  await page.getByRole('button', { name: 'Week', exact: true }).click();
+  await page.mouse.move(8,8);
+  await page.screenshot({ path: 'docs/screenshots/week-desktop.png' });
+  await page.getByRole('button', { name: 'Day', exact: true }).click();
+  await page.screenshot({ path: 'docs/screenshots/day-desktop.png' });
+  await page.getByRole('button', { name: 'Month', exact: true }).click();
+  await page.getByText('Download started.', { exact: true }).waitFor({ state: 'hidden' });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'docs/screenshots/calendar-mobile.png' });
   if (process.env.FRAY_BROWSER_AUTH === '1') {
@@ -100,19 +111,49 @@ try {
     await typeInto(page.getByRole('textbox', { name: /^Duration in minutes/ }), '75');
     await typeInto(page.getByRole('textbox', { name: /^Notes/ }), 'Persistent browser test');
     await page.getByRole('button', { name: 'Save entry', exact: true }).click();
-    await page.getByText('Persistent browser test').waitFor();
+    await page.getByRole('button', { name: 'Entries', exact: true }).click();
+    await page.locator('[aria-label*="Persistent browser test"]').first().waitFor();
     await page.reload();
     await page.locator('flt-semantics-placeholder').evaluate(el => el.click());
-    await page.getByText('Persistent browser test').waitFor();
+    await page.getByRole('button', { name: 'Entries', exact: true }).click();
+    await page.locator('[aria-label*="Persistent browser test"]').first().waitFor();
     const scope = await page.evaluate(async () => (await fetch('/api/auth/me')).json());
     if (scope.email !== fixtureEmail) throw new Error('Session did not survive reload');
+    await page.getByRole('button', { name: 'Calendar', exact: true }).click();
+    await page.getByRole('button', { name: 'Start timer', exact: true }).click();
+    await page.route('**/api/**', route => route.abort());
+    await page.getByRole('button', { name: 'Add entry', exact: true }).click();
+    await typeInto(page.getByRole('textbox', { name: /^Duration in minutes/ }), '30');
+    await typeInto(page.getByRole('textbox', { name: /^Notes/ }), 'Offline browser entry');
+    await page.getByRole('button', { name: 'Save entry', exact: true }).click();
+    await page.locator('[aria-label*="Pending entries: 1"]').first().waitFor();
+    await page.reload();
+    await page.locator('flt-semantics-placeholder').evaluate(el => el.click());
+    await page.locator('[aria-label*="Pending entries: 1"]').first().waitFor();
+    await page.getByRole('button', { name: 'Stop and review', exact: true }).waitFor();
+    await page.screenshot({ path: 'docs/screenshots/offline-desktop.png' });
+    await page.unroute('**/api/**');
+    await page.getByRole('button', { name: 'Sync now', exact: true }).click();
+    await page.locator('[aria-label*="Pending entries: 1"]').first().waitFor({ state: 'hidden' });
+    const count = await page.evaluate(async () => {
+      const d = new Date(), month = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      const result = await (await fetch(`/api/entries?month=${month}`)).json();
+      return result.entries.filter(e => e.notes === 'Offline browser entry').length;
+    });
+    if (count !== 1) throw new Error('Offline entry was not synced exactly once');
+    await page.getByRole('button', { name: 'Discard', exact: true }).click();
+    await page.getByRole('button', { name: 'Discard', exact: true }).last().click();
+    await page.getByRole('button', { name: 'Start timer', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Profile', exact: true }).click();
     await page.getByRole('button', { name: 'Sign out', exact: true }).click();
     await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
-    console.log('Real-account browser check passed: MFA recovery login, project, entry, reload, logout.');
+    console.log('Real-account browser check passed: MFA recovery login, project, entry, offline reload, timer persistence, exactly-once sync, logout.');
   }
   if (errors.length) throw new Error(errors.join('\n'));
-  console.log('Browser checks passed: desktop, mobile, navigation, CSV download.');
+  console.log('Browser checks passed: desktop, mobile, navigation, Week/Day, CSV/PDF downloads.');
+} catch (error) {
+  await page.screenshot({path: ".artifacts/features-browser-error.png"});
+  throw error;
 } finally {
   await browser.close();
   if (fixtureEmail) {
